@@ -1,0 +1,1402 @@
+/* ===== 基本リセット・変数 ===== */
+:root {
+  --primary: #1a73e8;
+  --primary-light: #e8f0fe;
+  --primary-dark: #1557b0;
+  --success: #0d904f;
+  --success-light: #e6f4ea;
+  --danger: #d93025;
+  --danger-light: #fce8e6;
+  --warning: #f9ab00;
+  --warning-light: #fef7e0;
+  --text: #202124;
+  --text-secondary: #5f6368;
+  --border: #dadce0;
+  --bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --nav-height: 60px;
+  --header-height: 50px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ===== ヘッダー ===== */
+#app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#app-header h1 {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* ===== メインコンテンツ ===== */
+#main-content {
+  margin-top: var(--header-height);
+  margin-bottom: calc(var(--nav-height) + var(--safe-bottom));
+  min-height: calc(100vh - var(--header-height) - var(--nav-height) - var(--safe-bottom));
+  padding: 12px;
+}
+
+.view-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.view-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.view-header h2 { margin-bottom: 0; }
+
+/* ===== 下部ナビゲーション ===== */
+#bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 100;
+}
+
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-btn.active { color: var(--primary); }
+.nav-icon { font-size: 20px; }
+.nav-label { font-size: 10px; font-weight: 500; }
+
+/* ===== カード ===== */
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border: 1px solid var(--border);
+}
+
+.card-list { display: flex; flex-direction: column; gap: 8px; }
+
+.card-main { flex: 1; min-width: 0; }
+.card-title { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+.card-subtitle { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.card-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.card-right { text-align: right; flex-shrink: 0; margin-left: 12px; }
+
+.medicine-card, .price-card, .ingredient-group-card {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.medicine-card:active, .price-card:active, .ingredient-group-card:active {
+  background: var(--bg);
+}
+
+/* ===== タグ・バッジ ===== */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-new { background: var(--warning-light); color: #e37400; }
+.badge-matched { background: var(--success-light); color: var(--success); }
+.badge-cheapest { background: var(--success-light); color: var(--success); font-weight: 600; }
+.badge-tax { background: var(--primary-light); color: var(--primary); }
+
+/* ===== フォーム ===== */
+.form-group {
+  margin-bottom: 12px;
+}
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.form-input, .form-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--card-bg);
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+.form-row .form-group { flex: 1; }
+
+.form-group small {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ===== ボタン ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:active { background: var(--primary-dark); }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-large { padding: 14px 28px; font-size: 16px; width: 100%; }
+.btn-small { padding: 6px 12px; font-size: 12px; }
+.btn-block { width: 100%; }
+
+.btn-remove-item {
+  margin-top: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* ===== アップロードエリア ===== */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--card-bg);
+}
+.upload-area:active, .upload-area.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.upload-icon { font-size: 48px; margin-bottom: 12px; }
+.upload-text { color: var(--text-secondary); font-size: 15px; line-height: 1.6; }
+
+.preview-area {
+  margin-top: 16px;
+  text-align: center;
+}
+.preview-area img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.preview-actions {
+  display: flex;
+  gap: 8px;
+}
+.preview-actions .btn { flex: 1; }
+
+/* ===== OCR結果 ===== */
+.ocr-meta {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.input-with-action {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ocr-original {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.confidence-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+.confidence-high { background: var(--success-light); color: var(--success); }
+.confidence-medium { background: var(--warning-light); color: #e37400; }
+.confidence-low { background: var(--danger-light); color: var(--danger); }
+
+.ocr-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ocr-item {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+}
+.ocr-item-new { border-left: 3px solid var(--warning); }
+
+.ocr-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.item-number {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ocr-notes {
+  background: var(--warning-light);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.ocr-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.ocr-actions .btn { flex: 1; }
+
+/* ===== 価格表示 ===== */
+.price-display {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.price-vendor { font-size: 11px; color: var(--text-secondary); }
+.price-count { font-size: 11px; color: var(--text-secondary); }
+
+.price-rows { margin-top: 8px; }
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid var(--bg);
+  gap: 8px;
+}
+.price-row:first-child { border-top: none; }
+.price-cheapest { background: var(--success-light); margin: 0 -8px; padding: 8px; border-radius: 6px; }
+.price-vendor-name { font-size: 13px; flex: 1; }
+.price-amount { font-weight: 600; font-size: 14px; }
+
+/* ===== テーブル ===== */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left;
+  padding: 8px;
+  background: var(--bg);
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--bg);
+}
+.row-cheapest {
+  background: var(--success-light);
+  font-weight: 600;
+}
+
+/* テーブルの横スクロール */
+.data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.data-table thead, .data-table tbody, .data-table tr { display: table; width: 100%; table-layout: fixed; }
+.data-table thead { display: table-header-group; }
+
+/* ===== 検索バー ===== */
+.search-bar {
+  margin-bottom: 12px;
+}
+.search-bar .form-input {
+  border-radius: 24px;
+  padding-left: 16px;
+}
+
+/* ===== フィルター ===== */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.filter-bar .form-select { flex: 1; }
+
+/* ===== 比較タブ ===== */
+.compare-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 4px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: var(--card-bg);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bg);
+  transition: background 0.15s;
+}
+.search-result-item:active { background: var(--bg); }
+.search-result-spec { color: var(--text-secondary); font-size: 12px; }
+
+.comparison-card h3 { margin-bottom: 8px; }
+
+/* ===== 初期設定画面 ===== */
+.setup-screen {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+.setup-screen h2 { margin-bottom: 16px; }
+.setup-screen p { margin-bottom: 16px; color: var(--text-secondary); }
+.setup-help {
+  margin-top: 24px;
+  background: var(--primary-light);
+  padding: 16px;
+  border-radius: 12px;
+}
+.setup-help h3 { font-size: 14px; margin-bottom: 8px; }
+.setup-help ol { padding-left: 20px; font-size: 13px; }
+.setup-help li { margin-bottom: 8px; }
+.setup-help p { font-size: 13px; }
+
+/* ===== 薬品詳細モーダル ===== */
+.medicine-detail .detail-info p {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.medicine-detail h4 {
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+.related-medicines { margin-top: 12px; }
+.tag-link { cursor: pointer; }
+.tag-link:active { background: var(--primary-light); }
+
+/* ===== ローディング ===== */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+#loading-overlay.show { display: flex; }
+
+.loading-content {
+  background: var(--card-bg);
+  padding: 32px 48px;
+  border-radius: 16px;
+  text-align: center;
+}
+.loading-content p {
+  margin-top: 16px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ボタン内スピナー */
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.btn-loading {
+  opacity: 0.8;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* ===== モーダル ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 500;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 16px; }
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--bg);
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-body { padding: 20px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 20px;
+}
+.modal-actions .btn { flex: 1; }
+
+/* ===== トースト ===== */
+#toast-container {
+  position: fixed;
+  top: calc(var(--header-height) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--text);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-success { background: var(--success); }
+.toast-error { background: var(--danger); }
+
+/* ===== 空状態 ===== */
+.empty-message {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 32px 16px;
+  font-size: 14px;
+}
+
+/* ===== ユーティリティ ===== */
+.hidden { display: none !important; }
+
+/* ===== レスポンシブ ===== */
+@media (min-width: 768px) {
+  #main-content { padding: 20px; }
+
+  .modal-overlay {
+    align-items: center;
+  }
+  .modal {
+    border-radius: 16px;
+  }
+
+  .ocr-item .form-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .upload-area { padding: 64px 32px; }
+}
+
+@media (max-width: 374px) {
+  .nav-label { font-size: 9px; }
+  .nav-icon { font-size: 18px; }
+  .form-input, .form-select { padding: 8px 10px; font-size: 13px; }
+}
+
+/* ===== 値上がりアラート ===== */
+
+/* OCR確認画面 - 各アイテムの警告バナー */
+.ocr-price-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: #fff8e1;
+  border: 1px solid #f9ab00;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.warning-icon { flex-shrink: 0; font-size: 15px; }
+.warning-text { color: #6b4c00; }
+.warning-text strong { color: #e37400; }
+
+/* badge-warning */
+.badge-warning { background: #fef7e0; color: #e37400; border: 1px solid #f9ab00; }
+
+/* 価格一覧 - サマリーバナー */
+.alerts-summary-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff3e0;
+  border: 1px solid #ff9800;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #6b3c00;
+}
+.alerts-summary-banner strong { color: #d84315; }
+.alerts-hint { font-size: 11px; color: #8d6e63; }
+
+/* 価格一覧 - カードラッパー（アラート付き） */
+.price-card-wrap {
+  padding: 0;
+  overflow: hidden;
+}
+.price-card-main {
+  padding: 14px 16px 10px;
+}
+
+/* 値上がりアラートバナー（価格一覧 / 共用） */
+.price-alert-banner {
+  background: #fce8e6;
+  border-top: 1px solid #f4b8b3;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.alert-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.alert-icon { font-size: 15px; flex-shrink: 0; }
+.alert-title { font-weight: 600; color: #c5221f; flex-shrink: 0; }
+.alert-increase { font-size: 12px; color: #5f2120; }
+.alert-alternative {
+  font-size: 12px;
+  color: #4a148c;
+  background: #f3e5f5;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.alert-alt-label {
+  display: inline-block;
+  background: #7b1fa2;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.alert-diff { color: #1b5e20; font-weight: 600; }
+
+/* 問い合わせ済みボタン */
+.btn-acknowledge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  background: white;
+  color: #c5221f;
+  border: 1px solid #f4b8b3;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-acknowledge:active { background: #fce8e6; }
+
+/* ===== キャンペーン価格 ===== */
+.campaign-row {
+  margin-bottom: 12px;
+}
+.campaign-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6a0dad;
+}
+.campaign-checkbox { width: 16px; height: 16px; accent-color: #7b1fa2; }
+.campaign-badge-label { color: #7b1fa2; }
+.campaign-date-wrap { margin-top: 8px; }
+.campaign-end-label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.campaign-end-input { max-width: 160px; }
+
+/* キャンペーンバッジ */
+.badge-campaign {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #ce93d8;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+.badge-campaign-sm {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  display: inline-block;
+}
+.badge-expired {
+  background: #eeeeee;
+  color: #757575;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* ===== 発注管理画面 ===== */
+.order-panel { }
+
+/* キャンペーン期限警告ブロック */
+.campaign-alert-block {
+  background: #f3e5f5;
+  border: 1px solid #ce93d8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.campaign-alert-header {
+  font-weight: 700;
+  color: #6a0dad;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.campaign-alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  border-top: 1px solid #e1bee7;
+}
+.campaign-alert-row.expired { color: #616161; }
+.campaign-alert-row.expiring { color: #4a148c; }
+.campaign-alert-icon { flex-shrink: 0; }
+.campaign-alert-body strong { color: #4a148c; }
+
+/* 発注推奨カード */
+.order-vendor-card { margin-bottom: 12px; }
+.order-vendor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.order-vendor-name { font-weight: 700; font-size: 15px; flex: 1; }
+.order-count { font-size: 12px; color: var(--text-secondary); }
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  flex-wrap: wrap;
+  font-size: 13px;
+  border-bottom: 1px solid var(--bg);
+}
+.order-item-name { font-weight: 500; flex: 1; min-width: 120px; }
+.order-item-spec { font-size: 11px; color: var(--text-secondary); }
+.order-item-price { color: var(--primary); font-weight: 600; flex-shrink: 0; }
+
+/* コスト削減試算 */
+.savings-summary-card {
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  border: 1px solid #a5d6a7;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.savings-summary-title { font-size: 12px; color: #388e3c; font-weight: 600; margin-bottom: 4px; }
+.savings-summary-amount { font-size: 28px; font-weight: 700; color: #1b5e20; }
+.savings-summary-note { font-size: 11px; color: #558b2f; margin-top: 4px; }
+.savings-campaign-note { font-size: 11px; color: #e65100; margin-top: 8px; }
+.savings-table th { font-size: 11px; }
+.savings-med-name { font-weight: 600; font-size: 13px; }
+.savings-med-spec { font-size: 11px; color: var(--text-secondary); }
+.savings-vendor { font-size: 12px; }
+.savings-price-high { color: var(--danger); font-weight: 600; }
+.savings-price-low { color: var(--success); font-weight: 600; }
+.savings-diff { color: var(--success); text-align: right; font-size: 12px; }
+
+/* 問い合わせリスト */
+.inquiry-vendor-card { margin-bottom: 12px; }
+.inquiry-vendor-name { font-weight: 700; color: var(--primary); margin-bottom: 10px; font-size: 14px; }
+.inquiry-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.inquiry-med { flex: 1; font-size: 13px; }
+.inquiry-med strong { display: block; margin-bottom: 2px; }
+.inquiry-increase { display: block; color: var(--danger); font-size: 12px; }
+.inquiry-alt { display: block; color: #6a0dad; font-size: 11px; margin-top: 2px; }
+
+/* テキスト出力プレ */
+.export-text {
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ===== 価格推移表 ===== */
+.price-history-table th { font-size: 11px; }
+.trend-up { color: var(--danger); font-weight: 600; }
+.trend-down { color: var(--success); font-weight: 600; }
+.trend-flat { color: var(--text-secondary); }
+
+/* ===== 代替品リスト（薬品詳細） ===== */
+.related-medicines-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.related-med-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.related-price { font-size: 12px; color: var(--primary); font-weight: 600; }
+.related-price-none { font-size: 12px; color: var(--text-secondary); }
+
+/* ===== 推奨ラベル ===== */
+.recommend-label {
+  display: inline-block;
+  background: var(--success);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+/* ===== 成分比較ヒント ===== */
+.ingredient-hint { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.6; }
+.ingredient-switch-note { font-size: 12px; color: #e65100; margin-bottom: 8px; }
+.ingredient-card-right { text-align: right; flex-shrink: 0; margin-left: 8px; }
+.ingredient-best-price { font-size: 16px; font-weight: 700; color: var(--success); }
+.ingredient-best-vendor { font-size: 11px; color: var(--text-secondary); }
+
+/* ===== ナビゲーション - アラートバッジ ===== */
+.nav-btn { position: relative; }
+.nav-alert-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: var(--danger);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* ===== ドキュメント種類セレクター ===== */
+.doc-type-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.doc-type-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.doc-type-btn.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.doc-type-icon { font-size: 22px; }
+.doc-type-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.doc-type-desc { font-size: 10px; color: var(--text-secondary); }
+.doc-type-btn.active .doc-type-label { color: var(--primary); }
+
+/* PDFファイル名表示 */
+.preview-filename {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+/* 在庫一覧モードバナー */
+.inventory-mode-banner {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #1565c0;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+/* 6タブ対応 */
+@media (max-width: 390px) {
+  .nav-label { font-size: 9px; }
+  .nav-icon { font-size: 17px; }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* v5: デバッグパネル・PDFプレビュー改善        */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* デバッグ情報パネル */
+.debug-panel {
+  margin-top: 12px;
+  background: #fff8e1;
+  border: 1px solid #ffd54f;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff3cd;
+  font-size: 13px;
+  font-weight: 600;
+  color: #856404;
+}
+.debug-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #856404;
+  line-height: 1;
+  padding: 0 4px;
+}
+#debug-content {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #5d4037;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* PDFプレビュー改善 */
+.pdf-preview-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+.pdf-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.pdf-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  word-break: break-all;
+}
+.pdf-size {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* v5: 複数業者モード対応スタイル               */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* 業者サマリー（読み取り業者一覧） */
+.inventory-vendor-summary {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #1b5e20;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vendor-chip {
+  background: #fff;
+  border: 1px solid #81c784;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #2e7d32;
+}
+
+/* 品目行内の業者バッジ */
+.badge-vendor {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+/* 複数業者バッジ（h3横） */
+.ocr-items-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ocr-items-toolbar h3 {
+  margin: 0;
+}
+.multi-vendor-badge {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: #e65100;
+  font-weight: 600;
+}
+
+/* 業者名なし警告 */
+.ocr-original-warn {
+  color: #c62828;
+  font-weight: 600;
+}
+
+/* ===== v6: パッケージ情報セクション (OCR結果画面) ===== */
+.pkg-section {
+  background: #f0f4ff;
+  border: 1px solid #c5cae9;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0 10px;
+}
+.pkg-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3949ab;
+  margin-bottom: 8px;
+}
+.pkg-calc-result {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a237e;
+  background: #e8eaf6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-height: 30px;
+}
+
+/* パッケージチップ（在庫一覧・OCR確認画面共通） */
+.pkg-chip {
+  display: inline-block;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1565c0;
+  margin-top: 2px;
+}
+
+/* ===== v6: 在庫一覧ビュー ===== */
+
+/* コントロールバー */
+.inv-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.inv-search-input {
+  width: 100%;
+}
+.inv-filters {
+  display: flex;
+  gap: 8px;
+}
+.inv-filters .form-select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* サマリーバー */
+.inv-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+/* テーブルラッパー（横スクロール対応） */
+.inv-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+}
+
+/* テーブル本体 */
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 480px;
+}
+.inv-table th,
+.inv-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ソート可能ヘッダー */
+.inv-th {
+  background: #f1f3f4;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-secondary);
+  user-select: none;
+  white-space: nowrap;
+}
+.inv-th[data-col] {
+  cursor: pointer;
+}
+.inv-th[data-col]:hover {
+  background: #e8eaf6;
+  color: var(--primary);
+}
+.inv-th-sorted {
+  color: var(--primary);
+  background: #e8f0fe;
+}
+
+/* 最安値行ハイライト */
+.inv-row-cheapest {
+  background: #f6fef6;
+}
+.inv-row-cheapest:hover {
+  background: #e6f4ea;
+}
+.inv-row-expiring {
+  background: #fff8e1;
+}
+
+/* 薬品名セル */
+.inv-col-name {
+  min-width: 140px;
+}
+.inv-med-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.inv-med-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+/* 価格セル */
+.inv-col-price {
+  white-space: nowrap;
+}
+.inv-price-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* バッジ類 */
+.inv-cheapest-badge {
+  background: #e6f4ea;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.inv-tax-badge {
+  background: #fce8e6;
+  color: #b71c1c;
+  border: 1px solid #ef9a9a;
+  border-radius: 8px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+.inv-campaign-badge {
+  background: #fff8e1;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.inv-campaign-soon {
+  background: #fce8e6;
+  color: #b71c1c;
+  border-color: #ef9a9a;
+  animation: pulse-warn 1.5s infinite;
+}
+@keyframes pulse-warn {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* 業者・日付・カテゴリ列 */
+.inv-col-vendor { font-size: 12px; color: var(--text-secondary); min-width: 80px; }
+.inv-col-date   { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+.inv-col-cat    { font-size: 11px; color: var(--text-secondary); }
+
+/* テーブル行ホバー */
+.inv-table tbody tr:hover td {
+  background: #f8f9fa;
+}
+.inv-row-cheapest:hover td,
+.inv-row-expiring:hover td {
+  background: inherit;
+}
+
+/* ===== 納品書モード / 最安値より高く購入アラート ===== */
+.inventory-mode-banner.banner-delivery {
+  background: #e8f0fe;
+  border-left: 4px solid #1a73e8;
+}
+.price-alert-banner.alert-overpay {
+  border-color: #d93025;
+  background: #fce8e6;
+}
+
+/* ===== 最安値価格表ビュー ===== */
+.price-list-view .view-desc { color: var(--text-secondary); font-size: 13px; margin: 4px 0 12px; }
+.price-list-toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;
+}
+.price-list-toolbar #pl-search { flex: 1 1 160px; }
+.price-list-toolbar #pl-category { flex: 0 1 140px; }
+.pl-count { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.price-list-table th, .price-list-table td { white-space: normal; }
+.price-list-table .pl-price { font-weight: 600; white-space: nowrap; }
+.price-list-table .pl-tax { font-size: 10px; color: var(--text-secondary); margin-left: 3px; }
+.price-list-table .pl-vcount { font-size: 10px; color: var(--text-secondary); margin-left: 4px; }
+.print-header { display: none; }
+.print-only { display: none; }
+
+/* ===== 印刷（PDF出力） ===== */
+@media print {
+  /* 画面UIを隠す */
+  #app-header, #bottom-nav, #loading-overlay, #modal-container, #toast-container,
+  .no-print { display: none !important; }
+
+  body { background: #fff !important; }
+  #main-content { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+  .view-content { padding: 0 !important; }
+
+  /* 印刷専用要素を表示 */
+  .print-only { display: block !important; }
+  .print-header {
+    display: flex !important; justify-content: space-between; align-items: baseline;
+    border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px;
+  }
+  .print-title { font-size: 16px; font-weight: 700; }
+  .print-date { font-size: 12px; }
+
+  /* テーブルを印刷向けに整える */
+  .data-table { display: table !important; overflow: visible !important; font-size: 11px; }
+  .data-table thead { display: table-header-group; }
+  .data-table tr { page-break-inside: avoid; }
+  .data-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .data-table th, .data-table td { border: 1px solid #999; padding: 4px 6px; }
+  @page { size: A4; margin: 12mm; }
+}

@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Claude / ローカル設定
+.claude/settings.local.json
+
+# 移行で生成される院内の価格データ（公開リポジトリに含めない）
+tools/out/
+*.csv
+
+# 一時ファイル
+*.log
