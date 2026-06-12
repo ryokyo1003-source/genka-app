@@ -3,7 +3,7 @@
 const CONFIG = {
   // Google Gemini API
   GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',
-  GEMINI_MODEL: 'gemini-2.0-flash',
+  GEMINI_MODEL: 'gemini-2.5-flash',
   get GEMINI_API_URL() {
     return `https://generativelanguage.googleapis.com/v1beta/models/${this.GEMINI_MODEL}:generateContent?key=${this.GEMINI_API_KEY}`;
   },
