@@ -241,6 +241,11 @@ def main():
     with open(os.path.join(OUT_DIR, "成分グループ.csv"), "w", newline="", encoding="utf-8-sig") as f:
         csv.writer(f).writerow(["成分名", "薬品IDリスト"])
 
+    # アラート（空：ヘッダーのみ。全端末同期用）
+    with open(os.path.join(OUT_DIR, "アラート.csv"), "w", newline="", encoding="utf-8-sig") as f:
+        csv.writer(f).writerow(["ID", "種別", "薬品ID", "業者ID", "基準価格", "新価格",
+                                "上昇率", "代替候補", "適用日", "作成日時", "確認済み", "確認日時"])
+
     # ── サマリー ──────────────────────────────────────────────
     print("=" * 50)
     print("移行完了")

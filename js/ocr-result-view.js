@@ -620,7 +620,7 @@ const OcrResultView = {
         // 納品書: 登録前に判定済みの「最安値より高く購入」アラートを保存
         for (const item of pricesToSave) {
           if (item._overpay) {
-            PriceAlertService.saveAlert({
+            await PriceAlertService.saveAlert({
               ...item._overpay,
               medicineId:    item.medicineId,
               vendorId:      item.vendorId,
@@ -634,7 +634,7 @@ const OcrResultView = {
         for (const item of pricesToSave) {
           const detected = PriceAlertService.detectIncrease(item.medicineId, item.vendorId, item.price);
           if (detected) {
-            PriceAlertService.saveAlert({
+            await PriceAlertService.saveAlert({
               ...detected,
               medicineId:    item.medicineId,
               vendorId:      item.vendorId,

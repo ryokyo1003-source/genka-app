@@ -26,6 +26,9 @@ const CONFIG = {
     GROUPS: '成分グループ',
   },
 
+  // アラートシート（全端末で同期。SHEET_NAMESとは別に読むため分離）
+  ALERTS_SHEET: 'アラート',
+
   // 画像設定
   MAX_IMAGE_WIDTH: 1600,
   MAX_IMAGE_HEIGHT: 1600,

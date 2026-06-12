@@ -146,13 +146,18 @@ const PriceView = {
 
     // 「問い合わせ済み」ボタンのイベント
     container.querySelectorAll('.btn-acknowledge').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const alertId = btn.dataset.alertId;
-        PriceAlertService.acknowledge(alertId);
-        UI.showToast('アラートを解除しました', 'success');
-        this.renderAlertsSummary();
-        this.renderList();
+        btn.disabled = true;
+        try {
+          await PriceAlertService.acknowledge(btn.dataset.alertId);
+          UI.showToast('アラートを解除しました', 'success');
+          this.renderAlertsSummary();
+          this.renderList();
+        } catch (err) {
+          btn.disabled = false;
+          UI.showToast(`解除に失敗しました: ${err.message}`, 'error');
+        }
       });
     });
   },

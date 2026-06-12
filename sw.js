@@ -1,6 +1,6 @@
 // Service Worker - キャッシュバージョン管理
 // ★ バージョンを変えると全キャッシュがリセットされます
-const CACHE_NAME = 'yakuzai-v7';
+const CACHE_NAME = 'yakuzai-v8';
 
 const ASSETS = [
   './',

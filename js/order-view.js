@@ -304,10 +304,16 @@ const OrderView = {
       <button class="btn btn-secondary btn-block" id="btn-export-inquiry">問い合わせリストをコピー</button>`;
 
     container.querySelectorAll('.btn-acknowledge').forEach(btn => {
-      btn.addEventListener('click', () => {
-        PriceAlertService.acknowledge(btn.dataset.alertId);
-        UI.showToast('アラートを解除しました', 'success');
-        this.renderInquiries();
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await PriceAlertService.acknowledge(btn.dataset.alertId);
+          UI.showToast('アラートを解除しました', 'success');
+          this.renderInquiries();
+        } catch (err) {
+          btn.disabled = false;
+          UI.showToast(`解除に失敗しました: ${err.message}`, 'error');
+        }
       });
     });
 

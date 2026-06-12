@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
   <header id="app-header">
@@ -33,26 +33,26 @@
   <div id="toast-container"></div>
 
   <!-- Scripts (順序重要) -->
-  <script src="js/config.js?v=7"></script>
-  <script src="js/format-utils.js?v=7"></script>
-  <script src="js/image-utils.js?v=7"></script>
-  <script src="js/sheets.js?v=7"></script>
-  <script src="js/gemini.js?v=7"></script>
-  <script src="js/ocr-service.js?v=7"></script>
-  <script src="js/medicine-service.js?v=7"></script>
-  <script src="js/price-service.js?v=7"></script>
-  <script src="js/compare-service.js?v=7"></script>
-  <script src="js/price-alert-service.js?v=7"></script>
-  <script src="js/components.js?v=7"></script>
-  <script src="js/upload-view.js?v=7"></script>
-  <script src="js/ocr-result-view.js?v=7"></script>
-  <script src="js/medicine-view.js?v=7"></script>
-  <script src="js/price-view.js?v=7"></script>
-  <script src="js/compare-view.js?v=7"></script>
-  <script src="js/order-view.js?v=7"></script>
-  <script src="js/inventory-list-view.js?v=7"></script>
-  <script src="js/price-list-view.js?v=7"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/config.js?v=8"></script>
+  <script src="js/format-utils.js?v=8"></script>
+  <script src="js/image-utils.js?v=8"></script>
+  <script src="js/sheets.js?v=8"></script>
+  <script src="js/gemini.js?v=8"></script>
+  <script src="js/ocr-service.js?v=8"></script>
+  <script src="js/medicine-service.js?v=8"></script>
+  <script src="js/price-service.js?v=8"></script>
+  <script src="js/compare-service.js?v=8"></script>
+  <script src="js/price-alert-service.js?v=8"></script>
+  <script src="js/components.js?v=8"></script>
+  <script src="js/upload-view.js?v=8"></script>
+  <script src="js/ocr-result-view.js?v=8"></script>
+  <script src="js/medicine-view.js?v=8"></script>
+  <script src="js/price-view.js?v=8"></script>
+  <script src="js/compare-view.js?v=8"></script>
+  <script src="js/order-view.js?v=8"></script>
+  <script src="js/inventory-list-view.js?v=8"></script>
+  <script src="js/price-list-view.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
   <script>
     // Service Worker の完全リセット＋再登録（キャッシュを強制クリア）
     if ('serviceWorker' in navigator) {
@@ -61,7 +61,7 @@
       });
       caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
       setTimeout(() => {
-        navigator.serviceWorker.register('./sw.js?v=7').catch(() => {});
+        navigator.serviceWorker.register('./sw.js?v=8').catch(() => {});
       }, 2000);
     }
   </script>

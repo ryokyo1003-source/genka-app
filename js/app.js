@@ -4,6 +4,7 @@ const AppState = {
   vendors: [],
   prices: [],
   groups: [],
+  alerts: [],
   currentOcrResult: null,
   currentView: 'upload',
 };
@@ -67,12 +68,13 @@ const App = {
         <button class="btn btn-primary btn-large" id="btn-save-setup">設定を保存して開始</button>
         <div class="setup-help">
           <h3>スプレッドシートの準備</h3>
-          <p>以下の4つのシートを作成してください:</p>
+          <p>以下の5つのシートを作成してください:</p>
           <ol>
             <li><strong>薬品マスター</strong> - 1行目にヘッダー: ID, 薬品名, 成分名, 規格, カテゴリ, 単位, 登録日, 備考</li>
             <li><strong>業者マスター</strong> - 1行目にヘッダー: ID, 業者名, 電話番号, 担当者名, 備考</li>
             <li><strong>価格テーブル</strong> - 1行目にヘッダー: ID, 薬品ID, 業者ID, 単価, 税込フラグ, 有効開始日, 登録日, ソース, 備考</li>
             <li><strong>成分グループ</strong> - 1行目にヘッダー: 成分名, 薬品IDリスト</li>
+            <li><strong>アラート</strong> - 1行目にヘッダー: ID, 種別, 薬品ID, 業者ID, 基準価格, 新価格, 上昇率, 代替候補, 適用日, 作成日時, 確認済み, 確認日時</li>
           </ol>
           <p>スプレッドシートの共有設定を「リンクを知っている全員」→「編集者」に変更してください。</p>
         </div>
@@ -128,6 +130,17 @@ const App = {
           medicineIds: (row[1] || '').split(',').map(s => s.trim()).filter(Boolean),
         }))
       : [];
+
+    // アラート（全端末同期）
+    // シート「アラート」が未作成でもアプリ本体は動くよう、別リクエストで読む
+    try {
+      const alertRows = data[CONFIG.ALERTS_SHEET]
+        || await SheetsAPI.readSheet(CONFIG.ALERTS_SHEET);
+      AppState.alerts = PriceAlertService.parseRows(alertRows);
+    } catch (e) {
+      console.warn('[App] アラートシートを読み込めません。スプレッドシートに「アラート」シートを作成してください:', e.message);
+      AppState.alerts = [];
+    }
   },
 
   // ナビゲーション描画
