@@ -292,6 +292,20 @@ const OcrResultView = {
         </span>
       </div>` : '';
 
+    // 価格の異常チェック（既存価格と倍以上の差 → 読み取り/数量/入数ミスの可能性）
+    const anomaly = (typeof PriceService !== 'undefined')
+      ? PriceService.priceAnomaly(item.matchedMedicineId, item.new_price)
+      : { anomaly: false };
+    const anomalyHtml = anomaly.anomaly ? `
+      <div class="ocr-price-check">
+        <span class="warning-icon">⚠️</span>
+        <span class="warning-text">
+          既存価格（${FormatUtils.formatCurrency(anomaly.refMin)}～${FormatUtils.formatCurrency(anomaly.refMax)}）と
+          <strong>約${Math.round(anomaly.ratio * 10) / 10}倍</strong>の差があります。
+          読み取り・入数・数量の取り違えの可能性があるため、<strong>金額をご確認ください</strong>。
+        </span>
+      </div>` : '';
+
     // 在庫一覧モード: 品目ごとの業者セレクター
     const vendorRowHtml = isInventoryMode ? (() => {
       const opts = this._buildVendorOptions(item.vendorMatch?.id, item.vendor_name);
@@ -340,9 +354,11 @@ const OcrResultView = {
           <span class="item-number">#${index + 1}</span>
           ${item.isNew ? '<span class="badge badge-new">新規</span>' : '<span class="badge badge-matched">一致</span>'}
           ${warning ? '<span class="badge badge-warning">要確認</span>' : ''}
+          ${anomaly.anomaly ? '<span class="badge badge-pricecheck">価格差を確認</span>' : ''}
           ${isInventoryMode && item.vendor_name ? `<span class="badge badge-vendor">${item.vendor_name}</span>` : ''}
         </div>
         ${warningHtml}
+        ${anomalyHtml}
         <div class="form-group">
           <label>薬品名</label>
           <input type="text" class="form-input" id="med-name-${index}" value="${item.medicine_name || ''}">

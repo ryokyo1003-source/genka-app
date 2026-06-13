@@ -81,6 +81,21 @@ const PriceService = {
     return prices.reduce((min, p) => p.price < min.price ? p : min);
   },
 
+  // 価格の異常チェック（入力・読み取り・数量/入数ミスの検知）
+  // 既存の有効価格に対し、候補価格が2倍以上 or 半額以下なら anomaly=true
+  priceAnomaly(medicineId, candidatePrice) {
+    const price = parseFloat(candidatePrice);
+    if (!medicineId || !price || isNaN(price) || price <= 0) return { anomaly: false };
+    const prices = this.getLatestPrices(medicineId).map(p => p.price).filter(v => v > 0);
+    if (prices.length === 0) return { anomaly: false };
+    const refMin = Math.min(...prices);
+    const refMax = Math.max(...prices);
+    let anomaly = false, kind = null, ratio = 1;
+    if (price >= refMax * 2)      { anomaly = true; kind = 'high'; ratio = price / refMax; }
+    else if (price <= refMin / 2) { anomaly = true; kind = 'low';  ratio = refMin / price; }
+    return { anomaly, kind, ratio, refMin, refMax };
+  },
+
   // 全薬品の最安値マップ
   buildCheapestMap() {
     const map = {};

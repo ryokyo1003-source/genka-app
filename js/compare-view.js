@@ -70,10 +70,20 @@ const CompareView = {
       return;
     }
 
+    // 価格差が極端（最高が最安の2倍以上）なら注意を促す
+    const _vals = comparison.prices.map(p => p.price).filter(v => v > 0);
+    const _spread = _vals.length >= 2 ? Math.max(..._vals) / Math.min(..._vals) : 1;
+    const spreadWarn = _spread >= 2 ? `
+        <div class="spread-warning">
+          ⚠️ 業者間で価格が<strong>約${Math.round(_spread * 10) / 10}倍</strong>違います。
+          単位・入数の違いや、読み取り・数量の取り違えが含まれている可能性があります。元の書類をご確認ください。
+        </div>` : '';
+
     container.innerHTML = `
       <div class="card comparison-card">
         <h3>${comparison.medicine.name}</h3>
         <p class="card-subtitle">${comparison.medicine.ingredient || ''} ${comparison.medicine.specification || ''}</p>
+        ${spreadWarn}
         <table class="data-table">
           <thead>
             <tr><th>業者</th><th>単価</th><th>差額</th><th>適用日</th></tr>
