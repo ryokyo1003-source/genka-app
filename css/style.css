@@ -1400,3 +1400,80 @@ body {
   .data-table th, .data-table td { border: 1px solid #999; padding: 4px 6px; }
   @page { size: A4; margin: 12mm; }
 }
+
+/* ===== 進捗バー（複数ファイル読み取り） ===== */
+.loading-content #loading-label {
+  font-weight: 600;
+  color: var(--text);
+  max-width: 280px;
+  word-break: break-all;
+}
+.progress-count {
+  margin-top: 8px !important;
+  font-size: 13px;
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+.progress-bar-track {
+  width: 260px;
+  max-width: 70vw;
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 14px auto 0;
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.progress-hint {
+  margin-top: 10px !important;
+  font-size: 12px;
+  color: var(--text-secondary) !important;
+}
+
+/* ===== 複数ファイル一覧プレビュー ===== */
+.upload-subtext {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.multi-file-list {
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg);
+}
+.multi-file-head {
+  padding: 10px 14px;
+  font-weight: 600;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 14px;
+}
+.multi-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.multi-file-row .mf-ico { flex: none; }
+.multi-file-row .mf-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.multi-file-row .mf-size {
+  flex: none;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
