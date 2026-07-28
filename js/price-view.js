@@ -97,11 +97,20 @@ const PriceView = {
         .sort((a, b) => a.price - b.price)
         .map(p => {
           const isCheapest = cheapest && p.price === cheapest.price;
+          // この業者×薬品の登録履歴件数（2件以上なら履歴ボタンを出す）
+          const historyCount = AppState.prices.filter(
+            x => x.medicineId === med.id && x.vendorId === p.vendorId
+          ).length;
+          const historyBtn = historyCount > 1
+            ? `<button class="btn-price-history" data-medicine-id="${med.id}" data-vendor-id="${p.vendorId}" title="登録履歴を見る (${historyCount}件)">📋</button>`
+            : '';
           return `
             <div class="price-row ${isCheapest ? 'price-cheapest' : ''}">
               <span class="price-vendor-name">${UI.vendorName(p.vendorId)}</span>
               <span class="price-amount">${FormatUtils.formatCurrency(p.price)}${p.taxIncluded ? ' (税込)' : ''}</span>
               ${isCheapest ? '<span class="badge badge-cheapest">最安</span>' : ''}
+              ${historyBtn}
+              <button class="btn-price-delete" data-price-id="${p.id}" title="この価格を削除">🗑</button>
             </div>`;
         }).join('');
 
@@ -157,6 +166,110 @@ const PriceView = {
         } catch (err) {
           btn.disabled = false;
           UI.showToast(`解除に失敗しました: ${err.message}`, 'error');
+        }
+      });
+    });
+
+    // 価格削除ボタン
+    container.querySelectorAll('.btn-price-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleDeletePrice(btn.dataset.priceId, btn);
+      });
+    });
+
+    // 履歴ボタン
+    container.querySelectorAll('.btn-price-history').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.showPriceHistory(btn.dataset.medicineId, btn.dataset.vendorId);
+      });
+    });
+  },
+
+  // 価格データを削除（確認ダイアログ付き）
+  async handleDeletePrice(priceId, btn) {
+    const price = AppState.prices.find(p => p.id === priceId);
+    if (!price) return;
+    const med = MedicineService.findById(price.medicineId);
+    const vendorName = UI.vendorName(price.vendorId);
+    const dateStr = price.effectiveDate ? `（${FormatUtils.formatDate(price.effectiveDate)}）` : '';
+
+    const ok = await UI.confirm(
+      `「${med?.name || '?'}」${dateStr}<br>` +
+      `業者: ${vendorName}<br>` +
+      `価格: ${FormatUtils.formatCurrency(price.price)}<br><br>` +
+      `この価格データを削除します。よろしいですか？`
+    );
+    if (!ok) return;
+
+    if (btn) btn.disabled = true;
+    UI.showLoading('削除中...');
+    try {
+      await PriceService.deletePrice(priceId);
+      UI.showToast('価格データを削除しました', 'success');
+      this.renderAlertsSummary();
+      this.renderList();
+    } catch (err) {
+      if (btn) btn.disabled = false;
+      UI.showToast(`削除に失敗: ${err.message}`, 'error');
+    } finally {
+      UI.hideLoading();
+    }
+  },
+
+  // 同一業者×薬品の全登録履歴をモーダルで表示（履歴からも削除可能）
+  showPriceHistory(medicineId, vendorId) {
+    const allPrices = AppState.prices
+      .filter(p => p.medicineId === medicineId && p.vendorId === vendorId)
+      .sort((a, b) => (b.effectiveDate || b.registeredDate || '')
+        .localeCompare(a.effectiveDate || a.registeredDate || ''));
+
+    const med = MedicineService.findById(medicineId);
+    const vendorName = UI.vendorName(vendorId);
+
+    const rowsHtml = allPrices.map((p, i) => {
+      const isLatest = i === 0;
+      return `
+        <div class="price-history-row">
+          <div class="price-history-info">
+            <span class="price-history-amount">${FormatUtils.formatCurrency(p.price)}${p.taxIncluded ? ' (税込)' : ''}</span>
+            ${isLatest ? '<span class="badge badge-latest">最新</span>' : ''}
+            ${p.source ? `<span class="price-history-source">${p.source}</span>` : ''}
+          </div>
+          <div class="price-history-meta">
+            <span class="price-history-date">適用: ${FormatUtils.formatDate(p.effectiveDate)}</span>
+            <span class="price-history-reg">登録: ${FormatUtils.formatDate(p.registeredDate)}</span>
+          </div>
+          <button class="btn btn-danger btn-small btn-history-delete" data-price-id="${p.id}">削除</button>
+        </div>`;
+    }).join('');
+
+    UI.showModal(
+      `登録履歴 (${allPrices.length}件)`,
+      `<p class="modal-subtitle"><strong>${med?.name || ''}</strong><br>業者: ${vendorName}</p>
+       <div class="price-history-list">${rowsHtml}</div>`,
+      [{ label: '閉じる', action: 'close', class: 'btn-secondary' }]
+    );
+
+    // モーダル内の削除ボタンをバインド
+    document.querySelectorAll('.btn-history-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const priceId = btn.dataset.priceId;
+        if (!(await UI.confirm('この価格データを削除しますか？'))) return;
+        btn.disabled = true;
+        UI.showLoading('削除中...');
+        try {
+          await PriceService.deletePrice(priceId);
+          UI.closeModal();
+          UI.showToast('価格データを削除しました', 'success');
+          this.renderAlertsSummary();
+          this.renderList();
+        } catch (err) {
+          btn.disabled = false;
+          UI.showToast(`削除に失敗: ${err.message}`, 'error');
+        } finally {
+          UI.hideLoading();
         }
       });
     });

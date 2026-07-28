@@ -55,12 +55,13 @@ const OcrService = {
   },
 
   // 業者をあいまい検索（スコア60%以上）
+  // 「株式会社アスコ 一宮物流センター」⇔「アスコ」のような正式名⇔略称マッチに対応
   findVendor(name, vendors) {
     if (!name) return null;
     let bestMatch = null;
     let bestScore = 0;
     vendors.forEach(v => {
-      const score = FormatUtils.matchScore(name, v.name);
+      const score = FormatUtils.vendorMatchScore(name, v.name);
       if (score > bestScore && score >= 60) {
         bestScore = score;
         bestMatch = v;

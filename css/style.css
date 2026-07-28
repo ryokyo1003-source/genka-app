@@ -761,6 +761,83 @@ body {
 }
 .btn-acknowledge:active { background: #fce8e6; }
 
+/* 価格行の削除・履歴ボタン */
+.btn-price-delete,
+.btn-price-history {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 16px;
+  padding: 4px 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.btn-price-delete:hover,
+.btn-price-history:hover { opacity: 1; }
+.btn-price-delete:active { background: #fce8e6; opacity: 1; }
+.btn-price-history:active { background: #e3f2fd; opacity: 1; }
+.btn-price-delete:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* 登録履歴モーダル */
+.modal-subtitle {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--bg);
+}
+.price-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.price-history-row {
+  border: 1px solid var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: white;
+}
+.price-history-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.price-history-amount {
+  font-weight: 600;
+  font-size: 16px;
+}
+.price-history-source {
+  font-size: 11px;
+  color: #555;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+.price-history-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #666;
+  flex-wrap: wrap;
+}
+.btn-history-delete {
+  align-self: flex-end;
+}
+.badge-latest {
+  background: #1a73e8;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
 /* ===== キャンペーン価格 ===== */
 .campaign-row {
   margin-bottom: 12px;

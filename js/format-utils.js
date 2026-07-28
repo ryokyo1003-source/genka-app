@@ -52,6 +52,48 @@ const FormatUtils = {
       .replace(/\d+/g, '');             // 残った数字を除去
   },
 
+  // 業者名のコア部分を抽出
+  // "株式会社アスコ 一宮物流センター" → "あすこ"（株式会社/拠点情報を除去して正規化）
+  extractVendorCore(text) {
+    if (!text) return '';
+    let s = String(text);
+
+    // 会社種別を除去（前後問わず）
+    s = s.replace(/株式会社|（株）|\(株\)|㈱|有限会社|（有）|\(有\)|㈲|合同会社|合資会社|医療法人|社団法人|財団法人|農業協同組合/g, '');
+
+    // スペース以降を除去（"アスコ 一宮物流センター" → "アスコ"）
+    const firstSeg = s.split(/[\s　]/).filter(Boolean)[0];
+    if (firstSeg && firstSeg.length >= 2) s = firstSeg;
+
+    // 末尾の拠点情報を1段階だけ除去（"アスコ営業所" → "アスコ"）
+    // ※greedy prefix で本体を消さないよう、suffix そのものだけ削る
+    s = s.replace(/(物流センター|配送センター|営業所|事業所|支店|支社|本店|本社|デポ|支部)$/, '');
+
+    return this.normalize(s.trim());
+  },
+
+  // 業者名専用のあいまいマッチスコア（0-100）
+  // 「株式会社アスコ 一宮物流センター」⇔「アスコ」のような正式名⇔略称マッチに対応
+  vendorMatchScore(query, target) {
+    const qc = this.extractVendorCore(query);
+    const tc = this.extractVendorCore(target);
+    if (!qc || !tc) return 0;
+    if (qc === tc) return 100;
+
+    // 先頭一致は強く評価（master "あすこ" がOCR "あすこ一宮物流せんたー" の先頭にある）
+    if (tc.length >= 2 && qc.startsWith(tc)) return 90;
+    if (qc.length >= 2 && tc.startsWith(qc)) return 90;
+
+    // 包含
+    if (qc.includes(tc) || tc.includes(qc)) {
+      const shorter = Math.min(qc.length, tc.length);
+      if (shorter >= 2) return 75;
+    }
+
+    // 通常のmatchScoreにフォールバック
+    return this.matchScore(query, target);
+  },
+
   // あいまいマッチスコア（0-100）
   matchScore(query, target) {
     const nq = this.normalize(query);

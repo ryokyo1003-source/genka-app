@@ -221,6 +221,68 @@ const OcrResultView = {
         document.getElementById(`pkg-price-${i}`)?.addEventListener('input', updatePkgCalc);
       }
     });
+
+    // 各品目の削除ボタン
+    document.querySelectorAll('.btn-remove-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.index);
+        if (!isNaN(idx)) this.removeItem(idx);
+      });
+    });
+  },
+
+  // 品目の削除（DOM要素を消し、フラグを立てる。他のフォーム入力は維持される）
+  removeItem(index) {
+    const r = AppState.currentOcrResult;
+    if (!r || !Array.isArray(r.items)) return;
+    const item = r.items[index];
+    if (!item || item._deleted) return;
+
+    // DOM要素を削除（form-stateを失わずに視覚的に削除）
+    const el = document.querySelector(`.ocr-item[data-index="${index}"]`);
+    if (el) el.remove();
+
+    item._deleted = true;
+
+    // 残数を計算
+    const remaining = r.items.filter(it => !it._deleted).length;
+
+    if (remaining === 0) {
+      UI.showToast('全ての品目を削除しました', 'info');
+      AppState.currentOcrResult = null;
+      App.navigateTo('upload');
+      return;
+    }
+
+    this._refreshItemCounts(remaining);
+  },
+
+  // 削除後の件数表示を更新（タイトル・登録ボタン・番号バッジ）
+  _refreshItemCounts(count) {
+    // 「薬品リスト (N件)」見出し
+    document.querySelectorAll('h3').forEach(h => {
+      if (/^薬品リスト/.test(h.textContent)) h.textContent = `薬品リスト (${count}件)`;
+    });
+
+    // 一括登録ボタンの件数
+    const saveBtn = document.getElementById('btn-ocr-save');
+    if (saveBtn && saveBtn.textContent.includes('一括登録')) {
+      saveBtn.innerHTML = `一括登録する (${count}件)`;
+    }
+
+    // confidence-badge 内の件数
+    document.querySelectorAll('.confidence-badge').forEach(badge => {
+      if (/\d+件/.test(badge.textContent)) {
+        badge.innerHTML = badge.innerHTML.replace(/\d+件/, `${count}件`);
+      }
+    });
+
+    // 番号バッジを連番に振り直し
+    let n = 1;
+    document.querySelectorAll('.ocr-item').forEach(item => {
+      const numEl = item.querySelector('.item-number');
+      if (numEl) numEl.textContent = `#${n++}`;
+    });
   },
 
   // OCRの新価格でシステム内の安い代替候補を検索（業者問わず）
@@ -556,6 +618,9 @@ const OcrResultView = {
       const pricesToSave = [];
 
       for (let i = 0; i < result.items.length; i++) {
+        // 削除済みの品目はスキップ
+        if (result.items[i]._deleted) continue;
+
         const medSelect = document.getElementById(`med-select-${i}`);
         let medicineId  = medSelect?.value;
         const newPrice  = parseFloat(document.getElementById(`med-new-${i}`)?.value);
@@ -631,18 +696,30 @@ const OcrResultView = {
       const count = await PriceService.addPrices(pricesToSave);
 
       // アラートを検出・保存
+      // ★ 価格登録は既に完了しているため、アラート保存の失敗で全体を失敗させない
+      //   （失敗するとユーザーが再登録して価格が二重登録される恐れがある）
       let alertCount = 0;
+      let alertSaveErrors = 0;
+      const trySaveAlert = async (payload) => {
+        try {
+          await PriceAlertService.saveAlert(payload);
+          alertCount++;
+        } catch (e) {
+          alertSaveErrors++;
+          console.error('[OcrResultView] アラート保存失敗:', e.message);
+        }
+      };
+
       if (isDelivery) {
         // 納品書: 登録前に判定済みの「最安値より高く購入」アラートを保存
         for (const item of pricesToSave) {
           if (item._overpay) {
-            await PriceAlertService.saveAlert({
+            await trySaveAlert({
               ...item._overpay,
               medicineId:    item.medicineId,
               vendorId:      item.vendorId,
               effectiveDate: item.effectiveDate,
             });
-            alertCount++;
           }
         }
       } else {
@@ -650,15 +727,18 @@ const OcrResultView = {
         for (const item of pricesToSave) {
           const detected = PriceAlertService.detectIncrease(item.medicineId, item.vendorId, item.price);
           if (detected) {
-            await PriceAlertService.saveAlert({
+            await trySaveAlert({
               ...detected,
               medicineId:    item.medicineId,
               vendorId:      item.vendorId,
               effectiveDate: item.effectiveDate,
             });
-            alertCount++;
           }
         }
+      }
+
+      if (alertSaveErrors > 0) {
+        UI.showToast(`⚠️ ${alertSaveErrors}件のアラート保存に失敗しました（価格の登録は完了しています）`, 'warning');
       }
 
       if (alertCount > 0) {

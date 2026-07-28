@@ -97,6 +97,32 @@ const UI = {
     if (fill && total) fill.style.width = Math.round(current / total * 100) + '%';
   },
 
+  // 並列処理用の進捗表示（同時に複数ファイルを処理する場合）
+  showParallelProgress(label, total) {
+    this._clearProgressTimer();
+    document.getElementById('loading-overlay').innerHTML = `
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p id="loading-label">${label}</p>
+        <p class="progress-count" id="progress-count">0 / ${total} 完了</p>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-bar-fill" style="width:0%"></div>
+        </div>
+        <p class="progress-hint">複数枚を同時並列で読み取り中</p>
+      </div>`;
+    document.getElementById('loading-overlay').classList.add('show');
+  },
+
+  // 並列処理の進捗を更新（完了数のみ）
+  updateParallelProgress(done, total) {
+    const t = total || 1;
+    const pct = Math.round(done / t * 100);
+    const fill = document.getElementById('progress-bar-fill');
+    const count = document.getElementById('progress-count');
+    if (fill) fill.style.width = pct + '%';
+    if (count) count.textContent = `${done} / ${t} 完了`;
+  },
+
   _progressTimer: null,
   _clearProgressTimer() {
     if (this._progressTimer) { clearInterval(this._progressTimer); this._progressTimer = null; }

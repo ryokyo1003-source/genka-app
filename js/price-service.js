@@ -155,11 +155,36 @@ const PriceService = {
 
     await SheetsAPI.appendRows(CONFIG.SHEET_NAMES.PRICES, rows);
 
-    rows.forEach(row => {
-      AppState.prices.push(this.rowToObject(null, row));
+    // 新行のシート行番号を割り当て（削除時にこの行番号で更新する）
+    rows.forEach((row) => {
+      const obj = this.rowToObject(null, row);
+      this._lastRowIndex = (this._lastRowIndex || 1) + 1;
+      obj._rowIndex = this._lastRowIndex;
+      AppState.prices.push(obj);
     });
 
     return rows.length;
+  },
+
+  // 価格データを削除（ソフト削除: source列に "DELETED" を書く）
+  // → 次回読込で除外される。スプレッドシートの行自体は残るため復元可能
+  async deletePrice(priceId) {
+    const idx = AppState.prices.findIndex(p => p.id === priceId);
+    if (idx < 0) throw new Error('価格データが見つかりません');
+    const price = AppState.prices[idx];
+    if (!price._rowIndex) {
+      throw new Error('行番号が不明です。データを再読み込みしてください');
+    }
+
+    // source列(H列)を "DELETED" に上書き
+    await SheetsAPI.updateRange(
+      CONFIG.SHEET_NAMES.PRICES,
+      `H${price._rowIndex}`,
+      [['DELETED']]
+    );
+
+    // ローカル状態からも除去
+    AppState.prices.splice(idx, 1);
   },
 
   // 行データをオブジェクトに変換
@@ -177,8 +202,21 @@ const PriceService = {
     };
   },
 
+  // 行配列をオブジェクト配列に変換
+  // - DELETED な行を除外
+  // - 元のシート行番号 (_rowIndex) を保持 → 削除時に使用
   parseRows(rows) {
-    if (!rows || rows.length < 2) return [];
-    return rows.slice(1).map(row => this.rowToObject(rows[0], row));
+    if (!rows || rows.length < 2) {
+      this._lastRowIndex = rows?.length || 1;
+      return [];
+    }
+    this._lastRowIndex = rows.length; // ヘッダー込みの末尾行
+    return rows.slice(1)
+      .map((row, i) => {
+        const obj = this.rowToObject(rows[0], row);
+        obj._rowIndex = i + 2; // 1=ヘッダー、2以降がデータ
+        return obj;
+      })
+      .filter(p => p.id && p.source !== 'DELETED');
   },
 };

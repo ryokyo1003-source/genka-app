@@ -185,7 +185,7 @@ const UploadView = {
       if (previewFilename) {
         previewFilename.innerHTML = `
           <div class="multi-file-list">
-            <div class="multi-file-head">📚 ${files.length}枚を読み取ります（1枚ずつ順番に処理）</div>
+            <div class="multi-file-head">📚 ${files.length}枚を読み取ります（同時並列で処理）</div>
             ${rows}
           </div>`;
       }
@@ -285,21 +285,17 @@ const UploadView = {
     }
   },
 
-  // ── 複数枚処理（順次→結果を統合して一覧確認へ）──
+  // ── 複数枚処理（並列実行→結果を統合して一覧確認へ）──
   async _analyzeBatch(files) {
-    const results = [];
+    const PARALLEL = Math.max(1, CONFIG.OCR_PARALLEL || 5);
+    const results = new Array(files.length); // 元の順序を維持
     const errors  = [];
+    let done = 0;
+
+    UI.showParallelProgress('読み取り中（並列処理）', files.length);
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const isPdf = file.type === 'application/pdf';
-        UI.showProgress(
-          `読み取り中: ${file.name}`,
-          i + 1, files.length,
-          isPdf && file.size > 500 * 1024 ? 25 : 15
-        );
-
+      await this._runConcurrent(files, PARALLEL, async (file, idx) => {
         try {
           const ocrResult = await GeminiAPI.analyzeFile(file, this.docType);
           if (!ocrResult.items || ocrResult.items.length === 0) {
@@ -308,17 +304,19 @@ const UploadView = {
             const matched = OcrService.matchWithMasters(
               ocrResult, AppState.medicines, AppState.vendors
             );
-            results.push(matched);
+            results[idx] = matched;
           }
         } catch (e) {
           console.error(`[UploadView] ${file.name} 解析エラー:`, e);
           errors.push(`${file.name}: ${e.message}`);
+        } finally {
+          done++;
+          UI.updateParallelProgress(done, files.length);
         }
+      });
 
-        UI.completeProgressStep(i + 1, files.length);
-      }
-
-      const allItems = results.flatMap(r => r.items);
+      const successResults = results.filter(Boolean);
+      const allItems = successResults.flatMap(r => r.items);
       if (allItems.length === 0) {
         UI.showToast('どのファイルからも品目を読み取れませんでした', 'error');
         this.showDebugInfo('エラー詳細:\n' + errors.join('\n'));
@@ -328,12 +326,12 @@ const UploadView = {
       // 全ファイルの品目を1つのリストに統合（品目ごとに業者情報を保持）
       const vendorNames = [...new Set(allItems.map(it => it.vendor_name).filter(Boolean))];
       const merged = {
-        vendor_name:        results[0]?.vendor_name,
+        vendor_name:        successResults[0]?.vendor_name,
         vendor_names:       vendorNames,
         hasMultipleVendors: vendorNames.length > 1,
-        vendorMatch:        results[0]?.vendorMatch,
-        vendorMatchMap:     Object.assign({}, ...results.map(r => r.vendorMatchMap || {})),
-        effective_date:     results[0]?.effective_date,
+        vendorMatch:        successResults[0]?.vendorMatch,
+        vendorMatchMap:     Object.assign({}, ...successResults.map(r => r.vendorMatchMap || {})),
+        effective_date:     successResults[0]?.effective_date,
         items:              allItems,
         notes:              errors.length
           ? `⚠️ ${errors.length}件のファイルでエラー: ${errors.join(' / ')}`
@@ -345,7 +343,7 @@ const UploadView = {
       AppState.currentOcrResult = merged;
 
       if (errors.length) {
-        UI.showToast(`${results.length}/${files.length}ファイルを読み取りました（${errors.length}件エラー）`, 'warning');
+        UI.showToast(`${successResults.length}/${files.length}ファイルを読み取りました（${errors.length}件エラー）`, 'warning');
       } else {
         UI.showToast(`${files.length}ファイル・計${allItems.length}品目を読み取りました`, 'success');
       }
@@ -358,6 +356,19 @@ const UploadView = {
     } finally {
       UI.hideLoading();
     }
+  },
+
+  // 並列実行ヘルパー: items を limit 並列で worker に流す（順序保持はworker側でidx使用）
+  async _runConcurrent(items, limit, worker) {
+    let cursor = 0;
+    const runner = async () => {
+      while (cursor < items.length) {
+        const idx = cursor++;
+        await worker(items[idx], idx);
+      }
+    };
+    const runners = Array.from({ length: Math.min(limit, items.length) }, () => runner());
+    await Promise.all(runners);
   },
 
   // デバッグ情報パネルを表示

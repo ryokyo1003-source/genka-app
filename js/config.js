@@ -33,4 +33,7 @@ const CONFIG = {
   MAX_IMAGE_WIDTH: 1600,
   MAX_IMAGE_HEIGHT: 1600,
   IMAGE_QUALITY: 0.85,
+
+  // OCR並列処理（複数ファイルを同時に読み取る数）
+  OCR_PARALLEL: 5,
 };

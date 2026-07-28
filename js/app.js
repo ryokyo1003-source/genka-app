@@ -31,18 +31,96 @@ const App = {
       return;
     }
 
+    // ★ キャッシュ即時起動: 前回取得したデータがあれば即座に画面を出し、
+    //    最新データは裏で取得する（GASが遅くても「ぐるぐる」で待たせない）
+    const cached = this._loadCache();
+    if (cached) {
+      this.applyData(cached);
+      this.renderNavigation();
+      this.navigateTo('upload');
+      this.refreshInBackground();
+      return;
+    }
+
+    // キャッシュなし（初回のみ）: 通常ロード
     try {
-      UI.showLoading('データを読み込み中...');
+      UI.showLoading('データを読み込み中...\n（初回は20秒ほどかかることがあります）');
       await this.loadData();
       this.renderNavigation();
       this.navigateTo('upload');
       UI.showToast('データを読み込みました', 'success');
     } catch (err) {
-      UI.showToast(`初期化エラー: ${err.message}`, 'error');
-      console.error(err);
+      console.error('[App] 初期化エラー:', err);
+      this.showInitError(err);
     } finally {
       UI.hideLoading();
     }
+  },
+
+  // ===== データキャッシュ（起動高速化・オフライン耐性） =====
+  CACHE_KEY: 'yakuzai_data_cache_v1',
+
+  _loadCache() {
+    try {
+      const raw = localStorage.getItem(this.CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (!cached?.data || !cached.data[CONFIG.SHEET_NAMES.MEDICINES]) return null;
+      return cached;
+    } catch { return null; }
+  },
+
+  _saveCache(fetched) {
+    try {
+      localStorage.setItem(this.CACHE_KEY, JSON.stringify({
+        ts: new Date().toISOString(),
+        data: fetched.data,
+        alertRows: fetched.alertRows,
+      }));
+    } catch (e) {
+      // 容量超過などは致命的ではないので警告のみ
+      console.warn('[App] キャッシュ保存に失敗:', e.message);
+    }
+  },
+
+  // 裏で最新データを取得して反映する
+  async refreshInBackground() {
+    try {
+      const fetched = await this.fetchAll();
+      this.applyData(fetched);
+      this._saveCache(fetched);
+      // ユーザーが操作を始めていなければ画面を最新化（入力中の画面は壊さない）
+      if (AppState.currentView === 'upload' && !AppState.currentOcrResult) {
+        this.navigateTo('upload');
+      }
+      UI.showToast('最新データに更新しました', 'success');
+    } catch (err) {
+      console.warn('[App] バックグラウンド更新失敗:', err.message);
+      UI.showToast('最新データの取得に失敗しました（前回のデータを表示中）', 'warning');
+    }
+  },
+
+  // 初期化失敗時のリトライ画面（ログイン詰まり対策）
+  showInitError(err) {
+    const msg = (err && err.message) || String(err);
+    document.getElementById('main-content').innerHTML = `
+      <div class="view-content">
+        <div class="card" style="text-align:center;">
+          <h2>読み込みに失敗しました</h2>
+          <p style="color:#d33; margin: 12px 0;">${msg}</p>
+          <p style="font-size: 13px; color:#666; margin-bottom: 16px;">
+            通信状態をご確認のうえ、もう一度お試しください。<br>
+            （しばらく使っていないとサーバーの起動に時間がかかることがあります）
+          </p>
+          <button class="btn btn-primary btn-large" id="btn-retry-init">再読み込み</button>
+          <button class="btn btn-secondary" id="btn-open-settings" style="margin-top:8px;">設定を確認</button>
+        </div>
+      </div>`;
+    document.getElementById('btn-retry-init')?.addEventListener('click', () => this.init());
+    document.getElementById('btn-open-settings')?.addEventListener('click', () => {
+      this.renderNavigation();
+      this.showSettings();
+    });
   },
 
   // 初回設定画面
@@ -103,10 +181,30 @@ const App = {
     });
   },
 
-  // データ読み込み
-  async loadData() {
+  // 全データの取得（ネットワークのみ、AppStateには触らない）
+  async fetchAll() {
     const data = await SheetsAPI.loadAllData();
 
+    // アラート（全端末同期）
+    // readAllに含まれない場合はGAS経由で読む（Sheets API直読みはキー制限がある環境向けの最終手段）
+    let alertRows = data[CONFIG.ALERTS_SHEET] || null;
+    if (!alertRows) {
+      try {
+        alertRows = await SheetsAPI.readSheetViaGAS(CONFIG.ALERTS_SHEET);
+      } catch (e1) {
+        try {
+          alertRows = await SheetsAPI.readSheet(CONFIG.ALERTS_SHEET);
+        } catch (e2) {
+          console.warn('[App] アラートシートを読み込めません（シート「アラート」の作成を確認）:', e1.message, '/', e2.message);
+          alertRows = [];
+        }
+      }
+    }
+    return { data, alertRows };
+  },
+
+  // 取得済みデータをAppStateへ反映
+  applyData({ data, alertRows }) {
     AppState.medicines = MedicineService.parseRows(data[CONFIG.SHEET_NAMES.MEDICINES]);
     AppState.prices = PriceService.parseRows(data[CONFIG.SHEET_NAMES.PRICES]);
 
@@ -131,16 +229,15 @@ const App = {
         }))
       : [];
 
-    // アラート（全端末同期）
-    // シート「アラート」が未作成でもアプリ本体は動くよう、別リクエストで読む
-    try {
-      const alertRows = data[CONFIG.ALERTS_SHEET]
-        || await SheetsAPI.readSheet(CONFIG.ALERTS_SHEET);
-      AppState.alerts = PriceAlertService.parseRows(alertRows);
-    } catch (e) {
-      console.warn('[App] アラートシートを読み込めません。スプレッドシートに「アラート」シートを作成してください:', e.message);
-      AppState.alerts = [];
-    }
+    // アラート
+    AppState.alerts = PriceAlertService.parseRows(alertRows || []);
+  },
+
+  // データ読み込み（取得 → 反映 → キャッシュ保存）
+  async loadData() {
+    const fetched = await this.fetchAll();
+    this.applyData(fetched);
+    this._saveCache(fetched);
   },
 
   // ナビゲーション描画
