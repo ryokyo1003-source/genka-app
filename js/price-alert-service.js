@@ -73,6 +73,14 @@ const PriceAlertService = {
     const isIncrease = sameVendorCurrent && newPrice > sameVendorCurrent.price;
     if (!isIncrease) return null;
 
+    // 現在価格の3倍超は値上がりではありえない → OCRの単位取り違え
+    // （1箱の価格 vs 1錠の単価）と判断してアラートは作らない。
+    // 単価の確認は登録前の確認ダイアログで行う。
+    if (newPrice > sameVendorCurrent.price * 3) {
+      console.warn(`[PriceAlert] 単位取り違えの疑いで値上がりアラートをスキップ: ${medicineId} 現在${sameVendorCurrent.price} vs 新${newPrice}`);
+      return null;
+    }
+
     const medicine = MedicineService.findById(medicineId);
     const alternatives = [];
 
@@ -251,11 +259,10 @@ const PriceAlertService = {
     );
   },
 
-  // 単位取り違えの疑いがある未確認アラート（最安の3倍超＝+200%超）
+  // 単位取り違えの疑いがある未確認アラート（基準価格の3倍超＝+200%超）
+  // 値上がり・最安値より高く購入 の両タイプが対象
   getSuspectedUnitMismatch() {
-    return this.getActive().filter(a =>
-      (a.type || 'increase') === 'overpay' && a.newPrice > a.oldPrice * 3
-    );
+    return this.getActive().filter(a => a.newPrice > a.oldPrice * 3);
   },
 
   // 複数アラートを一括で確認済みにする（進捗コールバック付き）

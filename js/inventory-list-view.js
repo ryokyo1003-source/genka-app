@@ -42,6 +42,9 @@ const InventoryListView = {
         const pkg        = PriceService.parsePkgInfo(price);
         const campaign   = PriceService.getCampaignInfo(price);
         const isCheapest = cheapestMap[med.id]?.id === price.id;
+        // 最安値の3倍超は業者間の価格差ではありえない → 単位取り違えの疑い
+        const unitSuspect = !isCheapest && cheapestMap[med.id] &&
+                            price.price > cheapestMap[med.id].price * 3;
 
         rows.push({
           priceId:      price.id,
@@ -60,6 +63,7 @@ const InventoryListView = {
           pkg_qty:      pkg.pkg_qty,
           pkg_price:    pkg.pkg_price,
           isCheapest,
+          unitSuspect,
           isCampaign:   campaign !== null,
           campaignExpiringSoon: campaign?.isExpiringSoon || false,
           campaignEndDate: campaign?.endDate || '',
@@ -169,6 +173,10 @@ const InventoryListView = {
         ? '<span class="inv-cheapest-badge">最安</span>'
         : '';
 
+      const unitWarnHtml = r.unitSuspect
+        ? '<span class="badge badge-unit-warn" title="最安値の3倍超 — 1箱と1錠の取り違えの可能性">⚠️ 単位確認</span>'
+        : '';
+
       return `
         <tr class="${r.isCheapest ? 'inv-row-cheapest' : ''}${r.campaignExpiringSoon ? ' inv-row-expiring' : ''}">
           <td class="inv-col-name">
@@ -182,6 +190,7 @@ const InventoryListView = {
               ${cheapestHtml}
               <strong>¥${r.price.toLocaleString()}</strong>
               ${r.taxIncluded ? '<span class="inv-tax-badge">税込</span>' : ''}
+              ${unitWarnHtml}
               ${campaignHtml}
             </div>
           </td>

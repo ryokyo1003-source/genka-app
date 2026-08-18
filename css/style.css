@@ -1583,3 +1583,14 @@ body {
   color: var(--text-secondary);
   margin: 6px 0 14px;
 }
+
+/* ===== 単位取り違えの疑いバッジ ===== */
+.badge-unit-warn {
+  background: #fce8e6;
+  color: #c5221f;
+  border: 1px solid #f5c6c4;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+}

@@ -692,6 +692,30 @@ const OcrResultView = {
         return;
       }
 
+      // ★ 単価の最終チェック: 既存価格と3倍以上違う単価は「1箱の金額と1錠の単価の
+      //   取り違え」の可能性が高いため、登録前に必ず確認ダイアログを挟む
+      const suspects = pricesToSave
+        .map(item => ({ item, check: PriceService.priceAnomaly(item.medicineId, item.price) }))
+        .filter(x => x.check.anomaly && x.check.ratio >= 3);
+      if (suspects.length > 0) {
+        UI.hideLoading();
+        const list = suspects.map(x => {
+          const med = MedicineService.findById(x.item.medicineId);
+          return `・<strong>${med?.name || x.item.medicineId}</strong>: ` +
+                 `${FormatUtils.formatCurrency(x.item.price)}` +
+                 `（既存価格 ${FormatUtils.formatCurrency(x.check.refMin)}〜${FormatUtils.formatCurrency(x.check.refMax)} と約${Math.round(x.check.ratio)}倍の差）`;
+        }).join('<br>');
+        const ok = await UI.confirm(
+          `⚠️ <strong>単価が既存価格と大きく異なる品目があります</strong><br>` +
+          `1箱の合計金額と1錠の単価を取り違えている可能性があります。<br><br>` +
+          `${list}<br><br>` +
+          `修正する場合は「キャンセル」してください` +
+          `（入数がある場合はパッケージ情報に入力すると単価を自動計算します）。<br>` +
+          `金額が正しいことを確認済みの場合のみ「OK」で登録します。`
+        );
+        if (!ok) return;
+      }
+
       UI.showLoading(`価格データを登録中... (${pricesToSave.length}件)`);
       const count = await PriceService.addPrices(pricesToSave);
 

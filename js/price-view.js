@@ -97,6 +97,8 @@ const PriceView = {
         .sort((a, b) => a.price - b.price)
         .map(p => {
           const isCheapest = cheapest && p.price === cheapest.price;
+          // 最安値の3倍超は業者間の価格差ではありえない → 単位取り違えの疑い
+          const unitSuspect = cheapest && p.price > cheapest.price * 3;
           // この業者×薬品の登録履歴件数（2件以上なら履歴ボタンを出す）
           const historyCount = AppState.prices.filter(
             x => x.medicineId === med.id && x.vendorId === p.vendorId
@@ -109,6 +111,7 @@ const PriceView = {
               <span class="price-vendor-name">${UI.vendorName(p.vendorId)}</span>
               <span class="price-amount">${FormatUtils.formatCurrency(p.price)}${p.taxIncluded ? ' (税込)' : ''}</span>
               ${isCheapest ? '<span class="badge badge-cheapest">最安</span>' : ''}
+              ${unitSuspect ? '<span class="badge badge-unit-warn" title="最安値の3倍超 — 1箱と1錠の取り違えの可能性。誤りなら🗑で削除してください">⚠️ 単位確認</span>' : ''}
               ${historyBtn}
               <button class="btn-price-delete" data-price-id="${p.id}" title="この価格を削除">🗑</button>
             </div>`;
