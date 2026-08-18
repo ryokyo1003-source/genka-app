@@ -11,20 +11,22 @@ const PriceAlertService = {
     return rows.slice(1).map((row, i) => {
       let alternatives = [];
       try { alternatives = JSON.parse(row[7] || '[]'); } catch { /* 壊れたJSONは無視 */ }
+      // GAS経由では真偽値・日付が文字列でないまま届くため正規化する
+      const s = v => (v == null ? '' : String(v));
       return {
-        id:             row[0] || '',
-        type:           row[1] || 'increase',
-        medicineId:     row[2] || '',
-        vendorId:       row[3] || '',
+        id:             s(row[0]),
+        type:           s(row[1]) || 'increase',
+        medicineId:     s(row[2]),
+        vendorId:       s(row[3]),
         oldPrice:       parseFloat(row[4]) || 0,
         newPrice:       parseFloat(row[5]) || 0,
         pctIncrease:    parseFloat(row[6]) || 0,
         alternatives,
-        effectiveDate:  row[8] || '',
-        createdAt:      row[9] || '',
-        acknowledged:   row[10] === 'TRUE',
-        acknowledgedAt: row[11] || '',
-        key:            `${row[2]}_${row[3]}`,
+        effectiveDate:  FormatUtils.toDateOnly(row[8]),
+        createdAt:      s(row[9]),
+        acknowledged:   row[10] === true || row[10] === 'TRUE',
+        acknowledgedAt: s(row[11]),
+        key:            `${s(row[2])}_${s(row[3])}`,
         _row:           i + 2, // シート上の行番号（1行目はヘッダー）
       };
     }).filter(a => a.id);
@@ -133,6 +135,14 @@ const PriceAlertService = {
     if (!cheapest) return null;                  // 比較できる既存価格がない
     if (paidPrice <= cheapest.price) return null; // 最安値以下で購入できている → OK
 
+    // 最安値の3倍超は業者間の価格差ではありえない → OCRの単位取り違え
+    // （1箱の価格 vs 1錠の単価）と判断してアラートは作らない。
+    // 単価の確認はOCR結果画面のインライン警告で行う。
+    if (paidPrice > cheapest.price * 3) {
+      console.warn(`[PriceAlert] 単位取り違えの疑いでアラートをスキップ: ${medicineId} 最安${cheapest.price} vs 購入${paidPrice}`);
+      return null;
+    }
+
     const medicine = MedicineService.findById(medicineId);
     const alternatives = [];
 
@@ -239,6 +249,30 @@ const PriceAlertService = {
       `K${alert._row}:L${alert._row}`,
       [['TRUE', alert.acknowledgedAt]]
     );
+  },
+
+  // 単位取り違えの疑いがある未確認アラート（最安の3倍超＝+200%超）
+  getSuspectedUnitMismatch() {
+    return this.getActive().filter(a =>
+      (a.type || 'increase') === 'overpay' && a.newPrice > a.oldPrice * 3
+    );
+  },
+
+  // 複数アラートを一括で確認済みにする（進捗コールバック付き）
+  // ★ シート行を1件ずつ更新するため件数が多いと時間がかかる
+  async acknowledgeMany(alertIds, onProgress) {
+    let done = 0, failed = 0;
+    for (const id of alertIds) {
+      try {
+        await this.acknowledge(id);
+        done++;
+      } catch (e) {
+        failed++;
+        console.error('[PriceAlert] 一括確認済みの更新失敗:', id, e.message);
+      }
+      if (onProgress) onProgress(done + failed, alertIds.length);
+    }
+    return { done, failed };
   },
 
   // アラートの警告HTML（OCR確認画面 / 価格一覧で共用）

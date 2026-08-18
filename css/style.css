@@ -1571,3 +1571,15 @@ body {
   border-radius: 8px; padding: 8px 12px; margin: 8px 0 4px;
   font-size: 0.86rem; line-height: 1.55; color: #5f4b00;
 }
+
+/* ===== アラート一括整理ボタン ===== */
+.btn-warning {
+  background: #f9ab00;
+  color: #fff;
+}
+.btn-warning:hover { background: #e69c00; }
+.cleanup-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 14px;
+}

@@ -23,6 +23,7 @@ const PriceListView = {
               ${catOptions}
             </select>
             <button class="btn btn-primary" id="pl-print">🖨 PDF出力</button>
+            <button class="btn btn-secondary" id="pl-csv">📥 CSV出力（薬用量計算用）</button>
           </div>
         </div>
 
@@ -47,6 +48,83 @@ const PriceListView = {
       this.renderTable();
     });
     document.getElementById('pl-print')?.addEventListener('click', () => window.print());
+    document.getElementById('pl-csv')?.addEventListener('click', () => this.exportCsv());
+  },
+
+  // ===== CSV出力（薬用量計算アプリ用） =====
+  // フォーマット: 薬剤名,剤型,単価（仕入）,含有量（mg/錠）
+  // 画面の絞り込み（検索・カテゴリ）がそのまま反映される
+
+  // 名前・規格から含有量（mg）を抽出。μg/ngはmgに換算。ml等は対象外
+  _parseMgContent(name, spec) {
+    const re = /([0-9]+(?:[.][0-9]+)?)\s*(mg|㎎|ｍｇ|μg|µg|ug|ng)/i;
+    for (const text of [name || '', spec || '']) {
+      const normalized = text.replace(/[０-９．]/g,
+        c => c === '．' ? '.' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+      const m = normalized.match(re);
+      if (m) {
+        const value = parseFloat(m[1]);
+        const unit = m[2].toLowerCase();
+        if (unit === 'ng') return value / 1000000;
+        if (unit === 'μg' || unit === 'µg' || unit === 'ug') return value / 1000;
+        return value; // mg
+      }
+    }
+    return null;
+  },
+
+  // 名前・単位から剤型を推定（判定できなければ空欄）
+  _parseDosageForm(name, unit) {
+    const text = `${name || ''} ${unit || ''}`;
+    if (/チュアブル/.test(text)) return 'チュアブル';
+    if (/カプセル/.test(text)) return 'カプセル';
+    if (/散|顆粒|パウダー|原末|[^錠]粉/.test(text) || unit === '粉') return '粉';
+    if (/錠/.test(text)) return '錠';
+    return '';
+  },
+
+  exportCsv() {
+    let rows = this.buildRows();
+    if (this.category) rows = rows.filter(r => r.category === this.category);
+    if (this.search) {
+      const q = FormatUtils.normalize(this.search);
+      rows = rows.filter(r => FormatUtils.normalize(r.name).includes(q));
+    }
+    if (rows.length === 0) {
+      UI.showToast('出力対象がありません', 'error');
+      return;
+    }
+
+    const lines = ['薬剤名,剤型,単価（仕入）,含有量（mg/錠）'];
+    rows.forEach(r => {
+      const med = AppState.medicines.find(m => m.name === r.name && (m.specification || '') === r.spec);
+      const mg = this._parseMgContent(r.name, r.spec);
+      // 単価は元データの精度を維持（最大6桁で丸め）
+      const price = Math.round(r.price * 1000000) / 1000000;
+      // 薬用量計算アプリのCSV解析は単純なカンマ区切り（引用符非対応）のため、
+      // 名前中のカンマ・引用符・改行は全角カンマや空白に置換する
+      const name = String(r.name).replace(/,/g, '，').replace(/["\r\n]/g, ' ').trim();
+      lines.push([
+        name,
+        this._parseDosageForm(r.name, med?.unit),
+        price,
+        mg == null ? '' : mg,
+      ].join(','));
+    });
+
+    // Excel/Numbersで文字化けしないようBOM付きUTF-8
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const d = new Date();
+    const filename = `薬剤データ_${this.CLINIC_NAME}${d.getFullYear()}年${d.getMonth() + 1}月.csv`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+    UI.showToast(`${rows.length}品目をCSV出力しました（${filename}）`, 'success');
   },
 
   // 最安値の行データを構築（薬品ごと）

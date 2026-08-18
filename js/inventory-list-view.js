@@ -109,7 +109,25 @@ const InventoryListView = {
 
   // ── レンダリング ─────────────────────────────────────────────────────────
 
+  // 描画中に例外が起きてもスピナーのまま固まらないようにするラッパー
   _renderTable() {
+    try {
+      this._renderTableInner();
+    } catch (err) {
+      console.error('[InventoryList] 描画エラー:', err);
+      const el = document.getElementById('inventory-list-content');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="card" style="text-align:center;">
+          <p style="color:#d33; font-weight:600;">一覧の表示中にエラーが発生しました</p>
+          <p style="font-size:12px; color:#666; margin:8px 0 16px;">${err.message}</p>
+          <button class="btn btn-primary" id="inv-error-reload">データを再読み込み</button>
+        </div>`;
+      document.getElementById('inv-error-reload')?.addEventListener('click', () => App.reloadData());
+    }
+  },
+
+  _renderTableInner() {
     const allRows  = this._buildRows();
     const filtered = this._applyFilters(allRows);
 
@@ -176,7 +194,8 @@ const InventoryListView = {
       <div class="inv-summary">
         <span>${filtered.length}件 / 全${allRows.length}件</span>
         ${filtered.length > 0
-          ? `<button class="btn btn-secondary btn-small" id="inv-export-btn">⬇️ CSVエクスポート</button>`
+          ? `<button class="btn btn-secondary btn-small" id="inv-export-btn">⬇️ CSVエクスポート</button>
+             <button class="btn btn-secondary btn-small" id="inv-export-dose-btn">💊 薬用量計算用CSV</button>`
           : ''}
         <button class="btn btn-secondary btn-small" id="inv-reload-btn">🔄 再読み込み</button>
       </div>`;
@@ -261,6 +280,11 @@ const InventoryListView = {
       this._exportCsv(filteredRows);
     });
 
+    // 薬用量計算アプリ用CSVエクスポート
+    document.getElementById('inv-export-dose-btn')?.addEventListener('click', () => {
+      this._exportDosageCsv(filteredRows);
+    });
+
     // データ再読み込み
     document.getElementById('inv-reload-btn')?.addEventListener('click', () => {
       App.reloadData();
@@ -299,5 +323,46 @@ const InventoryListView = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     UI.showToast(`${rows.length}件のCSVをダウンロードしました`, 'success');
+  },
+
+  // 薬用量計算アプリ用CSV（薬剤名,剤型,単価（仕入）,含有量（mg/錠））
+  // 表示中（検索・フィルタ適用後）の薬品ごとに最安値を1行ずつ出力する
+  _exportDosageCsv(rows) {
+    const medicineIds = [...new Set(rows.map(r => r.medicineId))];
+    const lines = ['薬剤名,剤型,単価（仕入）,含有量（mg/錠）'];
+    let count = 0;
+
+    medicineIds.forEach(mid => {
+      const med = MedicineService.findById(mid);
+      const cheapest = PriceService.getCheapest(mid);
+      if (!med || !cheapest || !(cheapest.price > 0)) return;
+
+      // 薬用量計算アプリのCSV解析は単純なカンマ区切り（引用符非対応）のため、
+      // 名前中のカンマ・引用符・改行は全角カンマや空白に置換する
+      const name = String(med.name).replace(/,/g, '，').replace(/["\r\n]/g, ' ').trim();
+      const mg   = PriceListView._parseMgContent(med.name, med.specification);
+      const form = PriceListView._parseDosageForm(med.name, med.unit);
+      const price = Math.round(cheapest.price * 1000000) / 1000000;
+
+      lines.push([name, form, price, mg == null ? '' : mg].join(','));
+      count++;
+    });
+
+    if (count === 0) {
+      UI.showToast('出力対象がありません', 'error');
+      return;
+    }
+
+    const csv  = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `薬剤データ_${FormatUtils.today()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.showToast(`薬用量計算用CSV ${count}品目をダウンロードしました`, 'success');
   },
 };

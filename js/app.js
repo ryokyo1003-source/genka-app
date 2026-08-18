@@ -208,15 +208,15 @@ const App = {
     AppState.medicines = MedicineService.parseRows(data[CONFIG.SHEET_NAMES.MEDICINES]);
     AppState.prices = PriceService.parseRows(data[CONFIG.SHEET_NAMES.PRICES]);
 
-    // 業者マスター
+    // 業者マスター（GAS経由では数値セルが数値型のまま届くため文字列に正規化）
     const vendorRows = data[CONFIG.SHEET_NAMES.VENDORS] || [];
     AppState.vendors = vendorRows.length > 1
       ? vendorRows.slice(1).map(row => ({
-          id: row[0] || '',
-          name: row[1] || '',
-          tel: row[2] || '',
-          contact: row[3] || '',
-          notes: row[4] || '',
+          id: String(row[0] ?? ''),
+          name: String(row[1] ?? ''),
+          tel: String(row[2] ?? ''),
+          contact: String(row[3] ?? ''),
+          notes: String(row[4] ?? ''),
         }))
       : [];
 
@@ -224,8 +224,8 @@ const App = {
     const groupRows = data[CONFIG.SHEET_NAMES.GROUPS] || [];
     AppState.groups = groupRows.length > 1
       ? groupRows.slice(1).map(row => ({
-          ingredient: row[0] || '',
-          medicineIds: (row[1] || '').split(',').map(s => s.trim()).filter(Boolean),
+          ingredient: String(row[0] ?? ''),
+          medicineIds: String(row[1] ?? '').split(',').map(s => s.trim()).filter(Boolean),
         }))
       : [];
 

@@ -299,7 +299,17 @@ const OrderView = {
         </div>`;
     }).join('');
 
+    // 単位取り違えの疑い（最安の3倍超）の一括整理ボタン
+    const suspects = PriceAlertService.getSuspectedUnitMismatch();
+    const cleanupBtn = suspects.length > 0
+      ? `<button class="btn btn-warning btn-block" id="btn-cleanup-mismatch">
+          🧹 単位取り違えの疑い ${suspects.length}件を一括で確認済みにする
+         </button>
+         <p class="cleanup-hint">最安値の3倍を超える差は「1箱と1錠」など単位の読み取りミスがほぼ確実です。まとめて整理できます。</p>`
+      : '';
+
     container.innerHTML = `
+      ${cleanupBtn}
       ${blocks}
       <button class="btn btn-secondary btn-block" id="btn-export-inquiry">問い合わせリストをコピー</button>`;
 
@@ -315,6 +325,32 @@ const OrderView = {
           UI.showToast(`解除に失敗しました: ${err.message}`, 'error');
         }
       });
+    });
+
+    document.getElementById('btn-cleanup-mismatch')?.addEventListener('click', async () => {
+      const targets = PriceAlertService.getSuspectedUnitMismatch();
+      if (targets.length === 0) return;
+      const ok = await UI.confirm(
+        `単位取り違えの疑いがある ${targets.length}件のアラートをまとめて「確認済み」にします。` +
+        `（削除はされません。スプレッドシートに記録は残ります）`
+      );
+      if (!ok) return;
+      try {
+        UI.showLoading(`整理中... (0/${targets.length})`);
+        const result = await PriceAlertService.acknowledgeMany(
+          targets.map(a => a.id),
+          (done, total) => UI.showLoading(`整理中... (${done}/${total})`)
+        );
+        UI.showToast(
+          result.failed > 0
+            ? `${result.done}件整理 / ${result.failed}件失敗（再試行してください）`
+            : `${result.done}件のアラートを整理しました`,
+          result.failed > 0 ? 'warning' : 'success'
+        );
+      } finally {
+        UI.hideLoading();
+        this.renderInquiries();
+      }
     });
 
     document.getElementById('btn-export-inquiry')?.addEventListener('click', () => {

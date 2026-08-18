@@ -47,16 +47,19 @@ const MedicineService = {
   },
 
   // 行データをオブジェクトに変換
+  // ★ GAS経由の読み込みではセル値が数値のまま届くことがある（規格 "100" など）ため
+  //   文字列に正規化する
   rowToObject(headers, row) {
+    const s = v => (v == null ? '' : String(v));
     return {
-      id: row[0] || '',
-      name: row[1] || '',
-      ingredient: row[2] || '',
-      specification: row[3] || '',
-      category: row[4] || '',
-      unit: row[5] || '',
-      registeredDate: row[6] || '',
-      notes: row[7] || '',
+      id: s(row[0]),
+      name: s(row[1]),
+      ingredient: s(row[2]),
+      specification: s(row[3]),
+      category: s(row[4]),
+      unit: s(row[5]),
+      registeredDate: FormatUtils.toDateOnly(row[6]),
+      notes: s(row[7]),
     };
   },
 

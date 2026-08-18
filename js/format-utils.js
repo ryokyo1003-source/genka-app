@@ -12,9 +12,28 @@ const FormatUtils = {
     return dateStr.replace(/-/g, '/');
   },
 
-  // 今日の日付をYYYY-MM-DD形式で
+  // 今日の日付をYYYY-MM-DD形式で（端末のタイムゾーン基準。
+  // toISOString はUTCのため朝9時前だと前日になってしまう）
   today() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  },
+
+  // セル値を YYYY-MM-DD に正規化
+  // GAS経由の読み込みでは日付セルが "2026-06-11T15:00:00.000Z" のような
+  // ISO文字列で届くため、端末のタイムゾーン（JST）で日付部分だけ取り出す
+  toDateOnly(value) {
+    if (value == null || value === '') return '';
+    const s = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+      const d = new Date(s);
+      if (isNaN(d)) return s.slice(0, 10);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+    return s;
   },
 
   // ID生成（プレフィックス + 連番）

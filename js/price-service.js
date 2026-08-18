@@ -37,11 +37,12 @@ const PriceService = {
     return d.toISOString().slice(0, 10);
   },
 
-  // キャンペーン終了日のデフォルト（当月末）
+  // キャンペーン終了日のデフォルト（当月末。端末のタイムゾーン基準）
   defaultCampaignEndDate() {
     const d = new Date();
     d.setMonth(d.getMonth() + 1, 0);
-    return d.toISOString().slice(0, 10);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   },
 
   // ===== 価格取得 =====
@@ -188,17 +189,20 @@ const PriceService = {
   },
 
   // 行データをオブジェクトに変換
+  // ★ GAS経由の読み込みではセル値が数値・真偽値・日付のまま届くため、
+  //   ここで文字列に正規化する（備考欄が数値だと .match() が落ちて画面が固まる）
   rowToObject(headers, row) {
+    const s = v => (v == null ? '' : String(v));
     return {
-      id: row[0] || '',
-      medicineId: row[1] || '',
-      vendorId: row[2] || '',
+      id: s(row[0]),
+      medicineId: s(row[1]),
+      vendorId: s(row[2]),
       price: parseFloat(row[3]) || 0,
-      taxIncluded: row[4] === 'TRUE',
-      effectiveDate: row[5] || '',
-      registeredDate: row[6] || '',
-      source: row[7] || '',
-      notes: row[8] || '',
+      taxIncluded: row[4] === true || row[4] === 'TRUE',
+      effectiveDate: FormatUtils.toDateOnly(row[5]),
+      registeredDate: FormatUtils.toDateOnly(row[6]),
+      source: s(row[7]),
+      notes: s(row[8]),
     };
   },
 
