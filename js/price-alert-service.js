@@ -298,14 +298,23 @@ const PriceAlertService = {
       : `<div class="alert-alternative">他社の価格データがまだ登録されていません</div>`;
 
     const ackBtn = showAckButton
-      ? `<button class="btn btn-acknowledge" data-alert-id="${alert.id}">問い合わせ済み</button>`
+      ? `<button class="btn btn-acknowledge" data-alert-id="${alert.id}">確認済み</button>`
       : '';
 
     const isOverpay = alert.type === 'overpay';
-    const title = isOverpay ? '最安値より高く購入' : '値上がり検知';
+    // 最安値より高く購入: 「○○社の方が安い可能性があります」と業者名を明示し、
+    // 次回発注までの確認を促す（確認済みにするまで残り続ける）
+    const title = isOverpay
+      ? (best?.vendorName
+          ? `${best.vendorName}の方が安い可能性があります`
+          : '最安値より高く購入しています')
+      : '値上がり検知';
     const detail = isOverpay
-      ? `最安 ${FormatUtils.formatCurrency(alert.oldPrice)} → 購入 ${FormatUtils.formatCurrency(alert.newPrice)}（+${alert.pctIncrease}%）`
-      : `+${alert.pctIncrease}%（${FormatUtils.formatCurrency(alert.oldPrice)} → ${FormatUtils.formatCurrency(alert.newPrice)}）`;
+      ? `購入 ${FormatUtils.formatCurrency(alert.newPrice)}（${vendorName}） / 最安 ${FormatUtils.formatCurrency(alert.oldPrice)}（+${alert.pctIncrease}%）`
+      : `${vendorName}: +${alert.pctIncrease}%（${FormatUtils.formatCurrency(alert.oldPrice)} → ${FormatUtils.formatCurrency(alert.newPrice)}）`;
+    const hintHtml = isOverpay
+      ? `<div class="alert-action-hint">次回発注までに確認してください</div>`
+      : '';
 
     return `
       <div class="price-alert-banner ${isOverpay ? 'alert-overpay' : ''}" data-alert-id="${alert.id}">
@@ -315,6 +324,7 @@ const PriceAlertService = {
           <span class="alert-increase">${detail}</span>
         </div>
         ${alternativeHtml}
+        ${hintHtml}
         ${ackBtn}
       </div>`;
   },

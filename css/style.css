@@ -1594,3 +1594,11 @@ body {
   border-radius: 10px;
   white-space: nowrap;
 }
+
+/* ===== アラートの行動喚起（次回発注までに確認） ===== */
+.alert-action-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+  margin: 4px 0 6px;
+}

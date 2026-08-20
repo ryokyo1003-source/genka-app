@@ -767,7 +767,7 @@ const OcrResultView = {
 
       if (alertCount > 0) {
         const msg = isDelivery
-          ? `${count}件登録 ⚠️ ${alertCount}件が最安値より高い購入です`
+          ? `${count}件登録 ⚠️ ${alertCount}件は他社の方が安い可能性があります。次回発注までに確認してください`
           : `${count}件登録 ⚠️ ${alertCount}件の値上がりアラートを記録しました`;
         UI.showToast(msg, 'warning');
       } else {
@@ -779,6 +779,11 @@ const OcrResultView = {
 
       AppState.currentOcrResult = null;
       App.navigateTo(isDelivery ? 'order' : (isInventory ? 'inventory' : 'prices'));
+      // 納品書でアラートが出た場合は「問い合わせ」タブを直接開いて見せる
+      // （確認済みボタンを押すまでここに残り続ける）
+      if (isDelivery && alertCount > 0 && typeof OrderView !== 'undefined') {
+        OrderView.openTab('inquiries');
+      }
 
     } catch (err) {
       UI.showToast(`登録エラー: ${err.message}`, 'error');

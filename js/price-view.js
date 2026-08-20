@@ -117,33 +117,9 @@ const PriceView = {
             </div>`;
         }).join('');
 
-      // この薬品の未確認アラート
+      // この薬品の未確認アラート（表示は PriceAlertService.renderAlertBanner に統一）
       const alerts = PriceAlertService.getForMedicine(med.id);
-      const alertsHtml = alerts.map(alert => {
-        const vendorName = UI.vendorName(alert.vendorId);
-        const best = alert.alternatives[0];
-        const alternativeHtml = best
-          ? `<div class="alert-alternative">
-              <span class="alert-alt-label">${best.type === 'equivalent' ? '代替品' : '他社'}</span>
-              <strong>${best.medicineName}</strong>（${best.vendorName}）
-              ${FormatUtils.formatCurrency(best.price)}
-              <span class="alert-diff">▼ ${FormatUtils.formatCurrency(best.diff)} (-${best.diffPct}%)</span>
-             </div>`
-          : `<div class="alert-alternative">他社の価格データがまだ登録されていません</div>`;
-
-        return `
-          <div class="price-alert-banner" data-alert-id="${alert.id}">
-            <div class="alert-header">
-              <span class="alert-icon">⚠️</span>
-              <span class="alert-title">値上がり検知</span>
-              <span class="alert-increase">
-                ${vendorName}: +${alert.pctIncrease}%（${FormatUtils.formatCurrency(alert.oldPrice)} → ${FormatUtils.formatCurrency(alert.newPrice)}）
-              </span>
-            </div>
-            ${alternativeHtml}
-            <button class="btn btn-acknowledge" data-alert-id="${alert.id}">問い合わせ済み</button>
-          </div>`;
-      }).join('');
+      const alertsHtml = alerts.map(alert => PriceAlertService.renderAlertBanner(alert)).join('');
 
       return `
         <div class="card price-card-wrap">

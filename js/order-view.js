@@ -40,6 +40,11 @@ const OrderView = {
     this.renderCampaignAlerts();
   },
 
+  // 指定タブを開く（納品書登録後にアラートを見せる用途など）
+  openTab(tab) {
+    document.querySelector(`.compare-tabs .tab-btn[data-tab="${tab}"]`)?.click();
+  },
+
   // ===== キャンペーン有効期限警告 =====
   renderCampaignAlerts() {
     const today = FormatUtils.today();
@@ -279,7 +284,8 @@ const OrderView = {
         const best = alert.alternatives[0];
         const isOverpay = alert.type === 'overpay';
         const label = isOverpay
-          ? `最安より高く購入: 最安 ${FormatUtils.formatCurrency(alert.oldPrice)} → 購入 ${FormatUtils.formatCurrency(alert.newPrice)} (+${alert.pctIncrease}%)`
+          ? `${best?.vendorName ? best.vendorName + 'の方が安い可能性があります' : '最安値より高く購入しています'}` +
+            `（購入 ${FormatUtils.formatCurrency(alert.newPrice)} / 最安 ${FormatUtils.formatCurrency(alert.oldPrice)} +${alert.pctIncrease}%）。次回発注までに確認してください`
           : `値上がり: ${FormatUtils.formatCurrency(alert.oldPrice)} → ${FormatUtils.formatCurrency(alert.newPrice)} (+${alert.pctIncrease}%)`;
         return `
           <div class="inquiry-row">
