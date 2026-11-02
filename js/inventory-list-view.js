@@ -211,8 +211,12 @@ const InventoryListView = {
 
     document.getElementById('inventory-list-content').innerHTML = `
       <div class="inv-controls">
-        <input type="search" class="form-input inv-search-input" id="inv-search"
-               placeholder="薬品名・成分・業者で検索..." value="${this._searchTerm || ''}">
+        <div class="inv-search-row">
+          <input type="search" class="form-input inv-search-input" id="inv-search"
+                 placeholder="薬品名・成分・業者で検索 → Enter" value="${this._searchTerm || ''}"
+                 enterkeyhint="search">
+          <button class="btn btn-primary btn-small" id="inv-search-btn">🔍 検索</button>
+        </div>
         <div class="inv-filters">
           <select class="form-select" id="inv-filter-vendor">
             <option value="">全業者</option>
@@ -251,11 +255,37 @@ const InventoryListView = {
   },
 
   _bindEvents(filteredRows) {
-    // 検索
-    document.getElementById('inv-search')?.addEventListener('input', (e) => {
-      this._searchTerm = e.target.value;
+    // 検索は Enter または「🔍 検索」ボタンで実行する。
+    // 入力のたびに表を作り直すと、検索窓ごと再生成されてIME変換中の入力
+    // （「く」= k + u など）が途切れてしまうため、確定後にまとめて検索する。
+    const applySearch = () => {
+      const input = document.getElementById('inv-search');
+      this._searchTerm = input?.value || '';
       this._renderTable();
+      // 再描画で検索窓が作り直されるので、フォーカスを戻して続けて検索できるようにする
+      const newInput = document.getElementById('inv-search');
+      if (newInput) {
+        try {
+          newInput.focus();
+          const len = newInput.value.length;
+          newInput.setSelectionRange(len, len);
+        } catch { /* setSelectionRange非対応ブラウザは無視 */ }
+      }
+    };
+    const searchInput = document.getElementById('inv-search');
+    searchInput?.addEventListener('keydown', (e) => {
+      // IME変換確定のEnter（isComposing）では検索しない
+      if (e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault();
+        applySearch();
+      }
     });
+    // ×ボタンでクリアしたときも反映（Enterでの発火分は値が同じなのでスキップ）
+    searchInput?.addEventListener('search', () => {
+      const v = document.getElementById('inv-search')?.value || '';
+      if (v !== this._searchTerm) applySearch();
+    });
+    document.getElementById('inv-search-btn')?.addEventListener('click', applySearch);
 
     // 業者フィルタ
     document.getElementById('inv-filter-vendor')?.addEventListener('change', (e) => {

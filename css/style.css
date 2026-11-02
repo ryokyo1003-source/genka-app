@@ -1602,3 +1602,12 @@ body {
   color: #b45309;
   margin: 4px 0 6px;
 }
+
+/* ===== 在庫一覧: 検索ボタン付き検索行 ===== */
+.inv-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inv-search-row .inv-search-input { flex: 1; min-width: 0; }
+.inv-search-row .btn { white-space: nowrap; }
