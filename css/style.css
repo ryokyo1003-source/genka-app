@@ -1633,3 +1633,15 @@ body {
   color: #1a73e8;
   margin: 4px 0 0;
 }
+
+/* ===== 希望小売価格チップ（フード等） ===== */
+.retail-chip {
+  display: inline-block;
+  background: #e6f4ea;
+  color: #137333;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}

@@ -453,6 +453,10 @@ const OcrResultView = {
             <label>${isInventoryMode ? '単価' : '新価格'}</label>
             <input type="number" class="form-input price-input" id="med-new-${index}" value="${item.new_price || ''}">
           </div>
+          <div class="form-group">
+            <label>希望小売価格（フード等・任意）</label>
+            <input type="number" class="form-input" id="med-retail-${index}" value="${item.retail_price || ''}" placeholder="-">
+          </div>
         </div>
         ${item.tax_included ? '<span class="badge badge-tax">税込</span>' : ''}
         ${pkgSectionHtml}
@@ -672,6 +676,9 @@ const OcrResultView = {
           ? PriceAlertService.detectOverpay(medicineId, vendorId, newPrice)
           : null;
 
+        // 希望小売価格（フード等。読み取り/手入力があれば保存）
+        const retailPrice = parseFloat(document.getElementById(`med-retail-${i}`)?.value) || 0;
+
         pricesToSave.push({
           medicineId,
           vendorId,
@@ -683,6 +690,7 @@ const OcrResultView = {
           campaignEndDate,
           pkg_qty:   pkgQty,
           pkg_price: pkgPrice,
+          retail_price: retailPrice > 0 ? retailPrice : null,
           _overpay:  overpay,
         });
       }

@@ -115,6 +115,14 @@ const PriceService = {
     return { pkg_qty: parseInt(match[1]), pkg_price: parseFloat(match[2]) };
   },
 
+  // 希望小売価格（フード等）をnotesから復元（msrp:金額 形式。無ければnull）
+  parseMsrp(price) {
+    const match = (price.notes || '').match(/msrp:([\d.]+)/);
+    if (!match) return null;
+    const v = parseFloat(match[1]);
+    return (!isNaN(v) && v > 0) ? v : null;
+  },
+
   // 価格を登録
   // item に isCampaign: true, campaignEndDate: 'YYYY-MM-DD' → キャンペーン登録
   // item に pkg_qty: N, pkg_price: P → パッケージ情報を notes に保存
@@ -139,6 +147,12 @@ const PriceService = {
       if (item.pkg_qty && item.pkg_qty > 1) {
         const pkgNote = `pkg:${item.pkg_qty}@${item.pkg_price || Math.round(item.price * item.pkg_qty)}`;
         notes = notes ? `${pkgNote} ${notes}` : pkgNote;
+      }
+
+      // 希望小売価格（フード等。読み取れた/入力された場合のみ保存）
+      if (item.retail_price && item.retail_price > 0) {
+        const msrpNote = `msrp:${item.retail_price}`;
+        notes = notes ? `${msrpNote} ${notes}` : msrpNote;
       }
 
       return [
@@ -167,18 +181,28 @@ const PriceService = {
     return rows.length;
   },
 
-  // 単価とパッケージ情報（入数・1箱価格）を更新する
-  // 単価=D列、備考（pkg:入数@箱価格 形式）=I列 を書き換える
-  async updatePriceDetails(priceId, { price, pkgQty, pkgPrice }) {
+  // 単価とパッケージ情報（入数・1箱価格）・希望小売価格を更新する
+  // 単価=D列、備考（pkg:入数@箱価格 msrp:希望小売価格 形式）=I列 を書き換える
+  // msrp: undefined=現状維持 / 0やnull=削除 / 正の数=設定
+  async updatePriceDetails(priceId, { price, pkgQty, pkgPrice, msrp }) {
     const p = AppState.prices.find(x => x.id === priceId);
     if (!p) throw new Error('価格データが見つかりません');
     if (!p._rowIndex) {
       throw new Error('行番号が不明です。データを再読み込みしてください');
     }
 
-    // 既存備考からpkg情報だけ除去し、新しいpkg情報を先頭に付ける
+    // msrp未指定なら既存の希望小売価格を維持する
+    const msrpVal = (msrp === undefined) ? this.parseMsrp(p) : msrp;
+
+    // 既存備考からpkg/msrp情報だけ除去し、新しい値を先頭に付ける
     // （キャンペーン終了日 end:... などの他の備考は保持する）
-    let notes = (p.notes || '').replace(/pkg:\d+@[\d.]+\s*/g, '').trim();
+    let notes = (p.notes || '')
+      .replace(/pkg:\d+@[\d.]+\s*/g, '')
+      .replace(/msrp:[\d.]+\s*/g, '')
+      .trim();
+    if (msrpVal && msrpVal > 0) {
+      notes = notes ? `msrp:${msrpVal} ${notes}` : `msrp:${msrpVal}`;
+    }
     if (pkgQty && pkgQty > 1) {
       const box = pkgPrice && pkgPrice > 0 ? pkgPrice : Math.round(price * pkgQty);
       notes = notes ? `pkg:${pkgQty}@${box} ${notes}` : `pkg:${pkgQty}@${box}`;

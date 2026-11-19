@@ -41,6 +41,7 @@ const InventoryListView = {
         const vendor     = AppState.vendors.find(v => v.id === price.vendorId);
         const pkg        = PriceService.parsePkgInfo(price);
         const campaign   = PriceService.getCampaignInfo(price);
+        const retailPrice = PriceService.parseMsrp(price);
         const isCheapest = cheapestMap[med.id]?.id === price.id;
         // 最安値の3倍超は業者間の価格差ではありえない → 単位取り違えの疑い
         const unitSuspect = !isCheapest && cheapestMap[med.id] &&
@@ -62,6 +63,7 @@ const InventoryListView = {
           source:       price.source || '',
           pkg_qty:      pkg.pkg_qty,
           pkg_price:    pkg.pkg_price,
+          retail_price: retailPrice,
           isCheapest,
           unitSuspect,
           isCampaign:   campaign !== null,
@@ -165,6 +167,10 @@ const InventoryListView = {
         ? `<span class="pkg-chip">📦 1箱 ${r.pkg_qty}${unitLabel}入り ¥${Math.round(r.pkg_price).toLocaleString()}</span>`
         : '';
 
+      const retailHtml = r.retail_price
+        ? `<span class="retail-chip">🏷 希望小売 ¥${Math.round(r.retail_price).toLocaleString()}</span>`
+        : '';
+
       const campaignHtml = r.isCampaign
         ? `<span class="inv-campaign-badge${r.campaignExpiringSoon ? ' inv-campaign-soon' : ''}">
              🎯${r.campaignEndDate ? ' 〜' + r.campaignEndDate : ''}
@@ -185,6 +191,7 @@ const InventoryListView = {
             <div class="inv-med-name">${r.medicineName}</div>
             <div class="inv-med-sub">${r.specification}${r.unit ? ' / ' + r.unit : ''}</div>
             ${pkgHtml}
+            ${retailHtml}
           </td>
           <td class="inv-col-vendor">${r.vendorName}</td>
           <td class="inv-col-price">
@@ -368,6 +375,11 @@ const InventoryListView = {
         <input type="number" step="1" min="0" class="form-input" id="inv-edit-pkg-price"
                value="${pkg.pkg_qty > 1 ? Math.round(pkg.pkg_price) : ''}" placeholder="例: 10000">
       </div>
+      <div class="form-group">
+        <label>希望小売価格 (¥・フード等、任意)</label>
+        <input type="number" step="1" min="0" class="form-input" id="inv-edit-msrp"
+               value="${PriceService.parseMsrp(p) || ''}" placeholder="空欄なら未設定">
+      </div>
       <p class="inv-edit-calc" id="inv-edit-calc">入数と1箱価格を入れると1${unit}あたりの単価を自動計算します</p>`;
 
     UI.showModal(
@@ -401,6 +413,7 @@ const InventoryListView = {
     const price    = parseFloat(document.getElementById('inv-edit-price')?.value);
     const pkgQty   = parseInt(document.getElementById('inv-edit-pkg-qty')?.value) || 1;
     const pkgPrice = parseFloat(document.getElementById('inv-edit-pkg-price')?.value) || 0;
+    const msrp     = parseFloat(document.getElementById('inv-edit-msrp')?.value) || 0;
 
     if (!price || isNaN(price) || price <= 0) {
       UI.showToast('単価を入力してください', 'error');
@@ -413,7 +426,7 @@ const InventoryListView = {
 
     try {
       UI.showLoading('保存中...');
-      await PriceService.updatePriceDetails(priceId, { price, pkgQty, pkgPrice });
+      await PriceService.updatePriceDetails(priceId, { price, pkgQty, pkgPrice, msrp });
       UI.closeModal();
       UI.showToast('単価・箱価格を更新しました', 'success');
       this._renderTable();
@@ -428,7 +441,7 @@ const InventoryListView = {
 
   _exportCsv(rows) {
     const headers = ['薬品名', '規格', '単位', 'カテゴリ', '成分', '業者', '単価', '税込',
-                     '入数', 'パッケージ合計金額', 'キャンペーン', 'キャンペーン終了日', '適用日'];
+                     '入数', 'パッケージ合計金額', '希望小売価格', 'キャンペーン', 'キャンペーン終了日', '適用日'];
     const csvRows = rows.map(r => [
       r.medicineName,
       r.specification,
@@ -440,6 +453,7 @@ const InventoryListView = {
       r.taxIncluded ? '税込' : '税抜',
       r.pkg_qty > 1 ? r.pkg_qty : '',
       r.pkg_qty > 1 ? Math.round(r.pkg_price) : '',
+      r.retail_price ? Math.round(r.retail_price) : '',
       r.isCampaign ? 'あり' : '',
       r.campaignEndDate || '',
       r.effectiveDate,
