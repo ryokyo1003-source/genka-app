@@ -1611,3 +1611,25 @@ body {
 }
 .inv-search-row .inv-search-input { flex: 1; min-width: 0; }
 .inv-search-row .btn { white-space: nowrap; }
+
+/* ===== 在庫一覧: 単価・箱価格の編集 ===== */
+.inv-edit-btn {
+  background: none;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.inv-edit-btn:active { background: #f1f3f4; }
+.inv-unit-label {
+  font-size: 11px;
+  color: #80868b;
+}
+.inv-edit-calc {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a73e8;
+  margin: 4px 0 0;
+}

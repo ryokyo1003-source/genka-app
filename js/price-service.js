@@ -167,6 +167,31 @@ const PriceService = {
     return rows.length;
   },
 
+  // 単価とパッケージ情報（入数・1箱価格）を更新する
+  // 単価=D列、備考（pkg:入数@箱価格 形式）=I列 を書き換える
+  async updatePriceDetails(priceId, { price, pkgQty, pkgPrice }) {
+    const p = AppState.prices.find(x => x.id === priceId);
+    if (!p) throw new Error('価格データが見つかりません');
+    if (!p._rowIndex) {
+      throw new Error('行番号が不明です。データを再読み込みしてください');
+    }
+
+    // 既存備考からpkg情報だけ除去し、新しいpkg情報を先頭に付ける
+    // （キャンペーン終了日 end:... などの他の備考は保持する）
+    let notes = (p.notes || '').replace(/pkg:\d+@[\d.]+\s*/g, '').trim();
+    if (pkgQty && pkgQty > 1) {
+      const box = pkgPrice && pkgPrice > 0 ? pkgPrice : Math.round(price * pkgQty);
+      notes = notes ? `pkg:${pkgQty}@${box} ${notes}` : `pkg:${pkgQty}@${box}`;
+    }
+
+    await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `D${p._rowIndex}`, [[price]]);
+    await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `I${p._rowIndex}`, [[notes]]);
+
+    p.price = price;
+    p.notes = notes;
+    return p;
+  },
+
   // 価格データを削除（ソフト削除: source列に "DELETED" を書く）
   // → 次回読込で除外される。スプレッドシートの行自体は残るため復元可能
   async deletePrice(priceId) {

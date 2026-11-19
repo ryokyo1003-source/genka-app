@@ -159,8 +159,10 @@ const InventoryListView = {
 
     // テーブル行HTML
     const tableBodyHtml = filtered.map(r => {
+      // 1箱あたり: 何錠（何個）入りか + 箱価格を表示
+      const unitLabel = r.unit || '';
       const pkgHtml = r.pkg_qty > 1
-        ? `<span class="pkg-chip">📦 ${r.pkg_qty}入り ¥${Math.round(r.pkg_price).toLocaleString()}</span>`
+        ? `<span class="pkg-chip">📦 1箱 ${r.pkg_qty}${unitLabel}入り ¥${Math.round(r.pkg_price).toLocaleString()}</span>`
         : '';
 
       const campaignHtml = r.isCampaign
@@ -188,10 +190,11 @@ const InventoryListView = {
           <td class="inv-col-price">
             <div class="inv-price-row">
               ${cheapestHtml}
-              <strong>¥${r.price.toLocaleString()}</strong>
+              <strong>¥${r.price.toLocaleString()}</strong>${r.unit ? `<span class="inv-unit-label">/${r.unit}</span>` : ''}
               ${r.taxIncluded ? '<span class="inv-tax-badge">税込</span>' : ''}
               ${unitWarnHtml}
               ${campaignHtml}
+              <button class="inv-edit-btn" data-price-id="${r.priceId}" title="単価・入数・1箱価格を編集">✏️</button>
             </div>
           </td>
           <td class="inv-col-date">${r.effectiveDate || '-'}</td>
@@ -328,6 +331,97 @@ const InventoryListView = {
     document.getElementById('inv-reload-btn')?.addEventListener('click', () => {
       App.reloadData();
     });
+
+    // 単価・入数・1箱価格の編集
+    document.querySelectorAll('.inv-edit-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._showEditModal(btn.dataset.priceId);
+      });
+    });
+  },
+
+  // ── 単価・箱価格の編集 ────────────────────────────────────────────────────
+
+  _showEditModal(priceId) {
+    const p = AppState.prices.find(x => x.id === priceId);
+    if (!p) {
+      UI.showToast('価格データが見つかりません。再読み込みしてください', 'error');
+      return;
+    }
+    const med  = MedicineService.findById(p.medicineId);
+    const pkg  = PriceService.parsePkgInfo(p);
+    const unit = med?.unit || '錠';
+
+    const body = `
+      <div class="form-group">
+        <label>1${unit}あたり単価 (¥)</label>
+        <input type="number" step="0.01" min="0" class="form-input" id="inv-edit-price" value="${p.price}">
+      </div>
+      <div class="form-group">
+        <label>入数（1箱に何${unit}入りか。バラ売りは1）</label>
+        <input type="number" step="1" min="1" class="form-input" id="inv-edit-pkg-qty"
+               value="${pkg.pkg_qty > 1 ? pkg.pkg_qty : 1}">
+      </div>
+      <div class="form-group">
+        <label>1箱あたり価格 (¥)</label>
+        <input type="number" step="1" min="0" class="form-input" id="inv-edit-pkg-price"
+               value="${pkg.pkg_qty > 1 ? Math.round(pkg.pkg_price) : ''}" placeholder="例: 10000">
+      </div>
+      <p class="inv-edit-calc" id="inv-edit-calc">入数と1箱価格を入れると1${unit}あたりの単価を自動計算します</p>`;
+
+    UI.showModal(
+      `単価・箱価格の編集<br><small>${med?.name || ''}（${UI.vendorName(p.vendorId)}）</small>`,
+      body,
+      [
+        { label: 'キャンセル', action: 'cancel', class: 'btn-secondary', onClick: () => UI.closeModal() },
+        { label: '保存', action: 'save', class: 'btn-primary', onClick: () => this._saveEditModal(priceId, unit) },
+      ]
+    );
+
+    // 入数 × 1箱価格 → 単価の自動計算
+    const recalc = () => {
+      const qty = parseInt(document.getElementById('inv-edit-pkg-qty')?.value) || 0;
+      const box = parseFloat(document.getElementById('inv-edit-pkg-price')?.value) || 0;
+      const note = document.getElementById('inv-edit-calc');
+      if (qty > 1 && box > 0) {
+        const unitPrice = Math.round(box / qty * 100) / 100;
+        const priceEl = document.getElementById('inv-edit-price');
+        if (priceEl) priceEl.value = unitPrice;
+        if (note) note.textContent = `¥${box.toLocaleString()} ÷ ${qty}${unit} = 1${unit}あたり ¥${unitPrice.toLocaleString()}`;
+      } else if (note) {
+        note.textContent = `入数と1箱価格を入れると1${unit}あたりの単価を自動計算します`;
+      }
+    };
+    document.getElementById('inv-edit-pkg-qty')?.addEventListener('input', recalc);
+    document.getElementById('inv-edit-pkg-price')?.addEventListener('input', recalc);
+  },
+
+  async _saveEditModal(priceId, unit) {
+    const price    = parseFloat(document.getElementById('inv-edit-price')?.value);
+    const pkgQty   = parseInt(document.getElementById('inv-edit-pkg-qty')?.value) || 1;
+    const pkgPrice = parseFloat(document.getElementById('inv-edit-pkg-price')?.value) || 0;
+
+    if (!price || isNaN(price) || price <= 0) {
+      UI.showToast('単価を入力してください', 'error');
+      return;
+    }
+    if (pkgQty > 1 && pkgPrice > 0 && pkgPrice < price) {
+      UI.showToast(`1箱価格（¥${pkgPrice.toLocaleString()}）が1${unit}の単価より安くなっています。入力をご確認ください`, 'error');
+      return;
+    }
+
+    try {
+      UI.showLoading('保存中...');
+      await PriceService.updatePriceDetails(priceId, { price, pkgQty, pkgPrice });
+      UI.closeModal();
+      UI.showToast('単価・箱価格を更新しました', 'success');
+      this._renderTable();
+    } catch (err) {
+      UI.showToast(`保存エラー: ${err.message}`, 'error');
+    } finally {
+      UI.hideLoading();
+    }
   },
 
   // ── CSV エクスポート ──────────────────────────────────────────────────────
