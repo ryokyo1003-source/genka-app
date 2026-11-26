@@ -60,6 +60,8 @@ const InventoryListView = {
           source:       price.source || '',
           pkg_qty:      pkg.pkg_qty,
           pkg_price:    pkg.pkg_price,
+          // 一覧のメイン表示は1箱の価格（入数の登録がない品は単価）
+          mainPrice:    pkg.pkg_qty > 1 ? pkg.pkg_price : price.price,
           retail_price: retailPrice,
           isCheapest:   false,   // グループ単位で後段で判定する
           unitSuspect:  false,
@@ -197,10 +199,14 @@ const InventoryListView = {
 
     // テーブル行HTML（child=true は▼で開く他業者の行）
     const rowHtml = (r, { child = false, groupIdx = 0, restCount = 0, open = false } = {}) => {
-      // 1箱あたり: 何錠（何個）入りか + 箱価格を表示
+      // 価格表示: 入数の登録がある品は「1箱の価格」を大きく、「1錠あたり」を小さく添える
       const unitLabel = this._esc(r.unit || '');
-      const pkgHtml = r.pkg_qty > 1
-        ? `<span class="pkg-chip">📦 1箱 ${r.pkg_qty}${unitLabel}入り ¥${Math.round(r.pkg_price).toLocaleString()}</span>`
+      const hasBox    = r.pkg_qty > 1;
+      const mainPriceHtml = hasBox
+        ? `<strong>¥${Math.round(r.pkg_price).toLocaleString()}</strong><span class="inv-unit-label">/箱</span>`
+        : `<strong>¥${r.price.toLocaleString()}</strong>${r.unit ? `<span class="inv-unit-label">/${unitLabel}</span>` : ''}`;
+      const subPriceHtml = hasBox
+        ? `<div class="inv-price-sub">${r.pkg_qty}${unitLabel}入り ・ ${unitLabel ? `1${unitLabel}` : '単価'} ¥${r.price.toLocaleString()}</div>`
         : '';
 
       const retailHtml = r.retail_price
@@ -237,19 +243,19 @@ const InventoryListView = {
               ? `<div class="inv-child-name">└ ${this._esc(r.medicineName)}</div>`
               : `<div class="inv-med-name">${this._esc(r.medicineName)}</div>
                  <div class="inv-med-sub">${this._esc(r.specification)}${r.unit ? ' / ' + this._esc(r.unit) : ''}</div>`}
-            ${pkgHtml}
             ${retailHtml}
           </td>
           <td class="inv-col-vendor">${this._esc(r.vendorName)}${toggleHtml}</td>
           <td class="inv-col-price">
             <div class="inv-price-row">
               ${cheapestHtml}
-              <strong>¥${r.price.toLocaleString()}</strong>${r.unit ? `<span class="inv-unit-label">/${this._esc(r.unit)}</span>` : ''}
+              ${mainPriceHtml}
               ${r.taxIncluded ? '<span class="inv-tax-badge">税込</span>' : ''}
               ${unitWarnHtml}
               ${campaignHtml}
               <button class="inv-edit-btn" data-price-id="${r.priceId}" title="薬品名・業者・単価などを編集">✏️</button>
             </div>
+            ${subPriceHtml}
           </td>
           <td class="inv-col-date">${r.effectiveDate || '-'}</td>
           <td class="inv-col-cat">${this._esc(r.category) || '-'}</td>
@@ -307,7 +313,7 @@ const InventoryListView = {
                 <tr>
                   ${th('medicineName', '薬品名')}
                   ${th('vendorName', '業者')}
-                  ${th('price', '単価')}
+                  ${th('mainPrice', '価格')}
                   ${th('effectiveDate', '適用日')}
                   <th class="inv-th">カテゴリ</th>
                 </tr>
@@ -334,6 +340,12 @@ const InventoryListView = {
       btn.closest('tr')?.classList.toggle('inv-row-open', open);
       btn.textContent = open ? '▲ 閉じる' : `▼ 他${btn.dataset.count}件`;
       btn.setAttribute('aria-expanded', String(open));
+      // 「すべて開く／閉じる」ボタンの表記も現在の状態に合わせる
+      const allBtn = document.getElementById('inv-toggle-all');
+      if (allBtn) {
+        const allOpen = groups.every(g => g.rest.length === 0 || this._expanded.has(g.key));
+        allBtn.textContent = allOpen ? '▲ すべて閉じる' : '▼ すべて開く';
+      }
     });
 
     // すべて開く／すべて閉じる

@@ -265,7 +265,7 @@ VENDOR|シグニ
 
     if (this._usesPipeFormat(docType)) {
       // 在庫一覧・納品書: パイプ区切り形式でパース（トークン効率が高い）
-      const pipeResult = this.parsePipeFormat(responseText);
+      const pipeResult = this.parsePipeFormat(responseText, docType);
       if (pipeResult.items.length > 0) {
         console.log(`[GeminiAPI] パイプ形式パース成功: ${pipeResult.items.length}件`);
         return pipeResult;
@@ -286,7 +286,7 @@ VENDOR|シグニ
     const responseText = await this.callGeminiAPI(prompt, contentPart);
 
     if (this._usesPipeFormat(docType)) {
-      const pipeResult = this.parsePipeFormat(responseText);
+      const pipeResult = this.parsePipeFormat(responseText, docType);
       if (pipeResult.items.length > 0) return pipeResult;
     }
     return this.parseResponse(responseText);
@@ -296,10 +296,14 @@ VENDOR|シグニ
   // レスポンス解析
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  // ★ パイプ区切り形式のレスポンスをパース（在庫一覧専用）
-  // 形式: 薬品名|規格|単位|単価|税込(0/1)|有効成分|カテゴリ
+  // ★ パイプ区切り形式のレスポンスをパース（在庫一覧・納品書）
+  // 在庫一覧: 薬品名|規格|単位|単価|税込(0/1)|有効成分|カテゴリ|入数|パッケージ価格|希望小売価格
+  // 納品書:   薬品名|規格|単位|単価|税込(0/1)|有効成分|カテゴリ|数量|金額|希望小売価格
+  // ★ 納品書の8・9番目は「購入した数量・合計金額」であって入数（1箱の中身の数）ではない。
+  //   入数として保存すると「3本買った」が「1箱3本入り」と表示されてしまうため、別項目として持つ。
   // ★ 複数業者対応: VENDOR行でセクションを区切り、品目ごとに vendor_name を持たせる
-  parsePipeFormat(text) {
+  parsePipeFormat(text, docType = 'inventory') {
+    const isDelivery = docType === 'delivery';
     const lines = text.trim().split('\n');
     let currentVendorName = null;
     const items = [];
@@ -338,15 +342,21 @@ VENDOR|シグニ
       const taxRaw      = parts[4]?.trim();
       const ingRaw      = parts[5]?.trim();
       const catRaw      = parts[6]?.trim();
-      const pkgQtyRaw   = parts[7]?.trim();   // 入数（パッケージ内の単品数）
-      const pkgPriceRaw = parts[8]?.trim();   // パッケージ価格（入数×単価の元の値）
+      const pkgQtyRaw   = parts[7]?.trim();   // 在庫一覧: 入数 / 納品書: 購入数量
+      const pkgPriceRaw = parts[8]?.trim();   // 在庫一覧: パッケージ価格 / 納品書: 合計金額
       const retailRaw   = parts[9]?.trim();   // 希望小売価格（フード等。記載があれば）
 
       // 価格のクリーニング（¥, 円, カンマ, スペースを除去）
       const cleanNum = (s) => parseFloat((s || '').replace(/[¥円,\s]/g, '').replace(/[^\d.]/g, ''));
       const new_price   = cleanNum(priceRaw);   // 単価（すでに1単位あたりに計算済み）
-      const pkg_qty     = pkgQtyRaw   ? Math.max(1, parseInt(pkgQtyRaw) || 1) : 1;
-      const pkg_price   = pkgPriceRaw ? cleanNum(pkgPriceRaw) : (pkg_qty > 1 ? new_price * pkg_qty : new_price);
+      const col8        = pkgQtyRaw   ? Math.max(1, parseInt(pkgQtyRaw) || 1) : 1;
+      const col9        = pkgPriceRaw ? cleanNum(pkgPriceRaw) : NaN;
+      const pkg_qty     = isDelivery ? 1 : col8;
+      const pkg_price   = isDelivery
+        ? new_price
+        : (!isNaN(col9) ? col9 : (pkg_qty > 1 ? new_price * pkg_qty : new_price));
+      const quantity    = isDelivery ? col8 : null;                          // 納品書の購入数量
+      const amount      = isDelivery && !isNaN(col9) && col9 > 0 ? col9 : null; // 納品書の合計金額
       const retailNum   = retailRaw ? cleanNum(retailRaw) : NaN;
       const retail_price = (!isNaN(retailNum) && retailNum > 0) ? retailNum : null;
 
@@ -369,6 +379,8 @@ VENDOR|シグニ
         pkg_qty,                              // 入数（1なら単品販売）
         pkg_price,                            // パッケージ価格（入数×単価）
         retail_price,                         // 希望小売価格（フード等。無ければnull）
+        quantity,                             // 納品書の購入数量（入数ではない）
+        amount,                               // 納品書の合計金額
       });
     }
 

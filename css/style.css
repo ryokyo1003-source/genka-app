@@ -1685,3 +1685,16 @@ body {
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* ===== 在庫一覧: 1箱価格をメインに、1錠あたりは小さく ===== */
+.inv-price-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.pkg-qty-note {
+  font-size: 12px;
+  color: #b06000;
+  margin-bottom: 8px;
+}

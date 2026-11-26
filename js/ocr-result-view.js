@@ -393,9 +393,14 @@ const OcrResultView = {
       const initCalc  = item.pkg_qty > 1 && item.pkg_price
         ? `📦 ${item.pkg_qty}個入り ¥${Math.round(item.pkg_price).toLocaleString()} → 単価 ¥${Math.round(item.pkg_price / item.pkg_qty).toLocaleString()}/個`
         : '入数が2以上の場合、単価が自動計算されます';
+      // 納品書の購入数量は入数ではないので、参考情報として表示するだけにする
+      const qtyNote = item.quantity > 1
+        ? `<div class="pkg-qty-note">納品書の購入数量: ${item.quantity}${item.amount ? `（合計 ¥${Math.round(item.amount).toLocaleString()}）` : ''}　※入数（1箱の中身の数）ではありません</div>`
+        : '';
       return `
         <div class="pkg-section" id="pkg-section-${index}">
-          <div class="pkg-header">📦 パッケージ情報（入数と合計価格から単価を自動計算）</div>
+          <div class="pkg-header">📦 パッケージ情報（1箱の入数と箱の価格から単価を自動計算）</div>
+          ${qtyNote}
           <div class="form-row">
             <div class="form-group">
               <label>入数（個売りは1）</label>
