@@ -5,6 +5,7 @@ const InventoryListView = {
   _searchTerm: '',
   _filterVendor: '',
   _filterCategory: '',
+  _expanded: new Set(),   // 他業者の価格を開いている薬品（グループキー）
 
   render() {
     return `
@@ -23,6 +24,7 @@ const InventoryListView = {
     this._searchTerm  = '';
     this._filterVendor   = '';
     this._filterCategory = '';
+    this._expanded    = new Set();
     this._renderTable();
   },
 
@@ -31,7 +33,6 @@ const InventoryListView = {
   // 全薬品×全業者の最新有効価格を1行ずつの配列に展開
   _buildRows() {
     const rows = [];
-    const cheapestMap = PriceService.buildCheapestMap();
 
     AppState.medicines.forEach(med => {
       const prices = PriceService.getLatestPrices(med.id);
@@ -42,10 +43,6 @@ const InventoryListView = {
         const pkg        = PriceService.parsePkgInfo(price);
         const campaign   = PriceService.getCampaignInfo(price);
         const retailPrice = PriceService.parseMsrp(price);
-        const isCheapest = cheapestMap[med.id]?.id === price.id;
-        // 最安値の3倍超は業者間の価格差ではありえない → 単位取り違えの疑い
-        const unitSuspect = !isCheapest && cheapestMap[med.id] &&
-                            price.price > cheapestMap[med.id].price * 3;
 
         rows.push({
           priceId:      price.id,
@@ -64,8 +61,8 @@ const InventoryListView = {
           pkg_qty:      pkg.pkg_qty,
           pkg_price:    pkg.pkg_price,
           retail_price: retailPrice,
-          isCheapest,
-          unitSuspect,
+          isCheapest:   false,   // グループ単位で後段で判定する
+          unitSuspect:  false,
           isCampaign:   campaign !== null,
           campaignExpiringSoon: campaign?.isExpiringSoon || false,
           campaignEndDate: campaign?.endDate || '',
@@ -73,7 +70,49 @@ const InventoryListView = {
       });
     });
 
+    // 同じ薬品（薬品名と規格が同じ）を1グループとして扱い、
+    // グループ内（絞り込み前の全業者）で最安と単位取り違えの疑いを判定する
+    const minByGroup = new Map();
+    const sizeByGroup = new Map();
+    rows.forEach(r => {
+      r.groupKey = FormatUtils.normalize(r.medicineName) + '|' + FormatUtils.normalize(r.specification);
+      const cur = minByGroup.get(r.groupKey);
+      if (!cur || r.price < cur.price) minByGroup.set(r.groupKey, r);
+      sizeByGroup.set(r.groupKey, (sizeByGroup.get(r.groupKey) || 0) + 1);
+    });
+    rows.forEach(r => {
+      const min = minByGroup.get(r.groupKey);
+      r.groupTotal  = sizeByGroup.get(r.groupKey);
+      r.isCheapest  = min === r;
+      // 最安値の3倍超は業者間の価格差ではありえない → 単位取り違えの疑い
+      r.unitSuspect = min !== r && r.price > min.price * 3;
+    });
+
     return rows;
+  },
+
+  _compareRows(a, b) {
+    const av = a[this._sortCol] ?? '';
+    const bv = b[this._sortCol] ?? '';
+    if (typeof av === 'number' && typeof bv === 'number') {
+      return (av - bv) * this._sortDir;
+    }
+    return String(av).localeCompare(String(bv), 'ja') * this._sortDir;
+  },
+
+  // 絞り込み後の行を薬品ごとにまとめる。先頭（head）は最安の行、rest は他業者の行（安い順）
+  _groupRows(filtered) {
+    const map = new Map();
+    filtered.forEach(r => {
+      if (!map.has(r.groupKey)) map.set(r.groupKey, []);
+      map.get(r.groupKey).push(r);
+    });
+    const groups = [...map.entries()].map(([key, rows]) => {
+      rows.sort((a, b) => a.price - b.price || String(b.effectiveDate).localeCompare(String(a.effectiveDate)));
+      return { key, head: rows[0], rest: rows.slice(1) };
+    });
+    groups.sort((a, b) => this._compareRows(a.head, b.head));
+    return groups;
   },
 
   // 検索・フィルタ・ソートを適用
@@ -101,14 +140,7 @@ const InventoryListView = {
     }
 
     // ソート
-    filtered.sort((a, b) => {
-      const av = a[this._sortCol] ?? '';
-      const bv = b[this._sortCol] ?? '';
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return (av - bv) * this._sortDir;
-      }
-      return String(av).localeCompare(String(bv), 'ja') * this._sortDir;
-    });
+    filtered.sort((a, b) => this._compareRows(a, b));
 
     return filtered;
   },
@@ -136,6 +168,10 @@ const InventoryListView = {
   _renderTableInner() {
     const allRows  = this._buildRows();
     const filtered = this._applyFilters(allRows);
+    const groups   = this._groupRows(filtered);
+    const totalGroups = new Set(allRows.map(r => r.groupKey)).size;
+    const hasCollapsible = groups.some(g => g.rest.length > 0);
+    const allOpen = hasCollapsible && groups.every(g => g.rest.length === 0 || this._expanded.has(g.key));
 
     // カテゴリ一覧（ユニーク・ソート済み）
     const categories = [...new Set(allRows.map(r => r.category).filter(Boolean))].sort((a, b) =>
@@ -159,8 +195,8 @@ const InventoryListView = {
       return `<th class="inv-th ${isSorted ? 'inv-th-sorted' : ''}" data-col="${col}">${label}${arrow}</th>`;
     };
 
-    // テーブル行HTML
-    const tableBodyHtml = filtered.map(r => {
+    // テーブル行HTML（child=true は▼で開く他業者の行）
+    const rowHtml = (r, { child = false, groupIdx = 0, restCount = 0, open = false } = {}) => {
       // 1箱あたり: 何錠（何個）入りか + 箱価格を表示
       const unitLabel = this._esc(r.unit || '');
       const pkgHtml = r.pkg_qty > 1
@@ -177,23 +213,34 @@ const InventoryListView = {
            </span>`
         : '';
 
-      const cheapestHtml = r.isCheapest
+      // 業者が1社だけの薬品に「最安」は付けない（比較対象がないため）
+      const cheapestHtml = (r.isCheapest && r.groupTotal > 1)
         ? '<span class="inv-cheapest-badge">最安</span>'
         : '';
+
+      const toggleHtml = (!child && restCount > 0)
+        ? `<button class="inv-group-toggle" data-group="${groupIdx}" data-count="${restCount}" aria-expanded="${open}">${open ? '▲ 閉じる' : `▼ 他${restCount}件`}</button>`
+        : '';
+
+      const rowClass = child
+        ? 'inv-row-child'
+        : `inv-row-head${restCount > 0 && open ? ' inv-row-open' : ''}`;
 
       const unitWarnHtml = r.unitSuspect
         ? '<span class="badge badge-unit-warn" title="最安値の3倍超 — 1箱と1錠の取り違えの可能性">⚠️ 単位確認</span>'
         : '';
 
       return `
-        <tr class="${r.isCheapest ? 'inv-row-cheapest' : ''}${r.campaignExpiringSoon ? ' inv-row-expiring' : ''}">
+        <tr class="${rowClass}${r.campaignExpiringSoon ? ' inv-row-expiring' : ''}"${child ? ` data-group="${groupIdx}"${open ? '' : ' hidden'}` : ''}>
           <td class="inv-col-name">
-            <div class="inv-med-name">${this._esc(r.medicineName)}</div>
-            <div class="inv-med-sub">${this._esc(r.specification)}${r.unit ? ' / ' + this._esc(r.unit) : ''}</div>
+            ${child
+              ? `<div class="inv-child-name">└ ${this._esc(r.medicineName)}</div>`
+              : `<div class="inv-med-name">${this._esc(r.medicineName)}</div>
+                 <div class="inv-med-sub">${this._esc(r.specification)}${r.unit ? ' / ' + this._esc(r.unit) : ''}</div>`}
             ${pkgHtml}
             ${retailHtml}
           </td>
-          <td class="inv-col-vendor">${this._esc(r.vendorName)}</td>
+          <td class="inv-col-vendor">${this._esc(r.vendorName)}${toggleHtml}</td>
           <td class="inv-col-price">
             <div class="inv-price-row">
               ${cheapestHtml}
@@ -207,11 +254,20 @@ const InventoryListView = {
           <td class="inv-col-date">${r.effectiveDate || '-'}</td>
           <td class="inv-col-cat">${this._esc(r.category) || '-'}</td>
         </tr>`;
+    };
+
+    const tableBodyHtml = groups.map((g, gi) => {
+      const open = this._expanded.has(g.key);
+      return rowHtml(g.head, { groupIdx: gi, restCount: g.rest.length, open }) +
+             g.rest.map(r => rowHtml(r, { child: true, groupIdx: gi, open })).join('');
     }).join('');
 
     const summaryHtml = `
       <div class="inv-summary">
-        <span>${filtered.length}件 / 全${allRows.length}件</span>
+        <span>${groups.length}品目（価格${filtered.length}件） / 全${totalGroups}品目</span>
+        ${hasCollapsible
+          ? `<button class="btn btn-secondary btn-small" id="inv-toggle-all">${allOpen ? '▲ すべて閉じる' : '▼ すべて開く'}</button>`
+          : ''}
         ${filtered.length > 0
           ? `<button class="btn btn-secondary btn-small" id="inv-export-btn">⬇️ CSVエクスポート</button>
              <button class="btn btn-secondary btn-small" id="inv-export-dose-btn">💊 薬用量計算用CSV</button>`
@@ -261,10 +317,33 @@ const InventoryListView = {
           </div>`
       }`;
 
-    this._bindEvents(filtered);
+    this._bindEvents(filtered, groups);
   },
 
-  _bindEvents(filteredRows) {
+  _bindEvents(filteredRows, groups = []) {
+    // ▼ 他業者の価格を開く／閉じる（表を作り直さずその場で切り替え、スクロール位置を保つ）
+    document.querySelector('.inv-table tbody')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.inv-group-toggle');
+      if (!btn) return;
+      const gi  = btn.dataset.group;
+      const key = groups[gi]?.key;
+      if (!key) return;
+      const open = !this._expanded.has(key);
+      if (open) this._expanded.add(key); else this._expanded.delete(key);
+      document.querySelectorAll(`tr.inv-row-child[data-group="${gi}"]`).forEach(tr => { tr.hidden = !open; });
+      btn.closest('tr')?.classList.toggle('inv-row-open', open);
+      btn.textContent = open ? '▲ 閉じる' : `▼ 他${btn.dataset.count}件`;
+      btn.setAttribute('aria-expanded', String(open));
+    });
+
+    // すべて開く／すべて閉じる
+    document.getElementById('inv-toggle-all')?.addEventListener('click', () => {
+      const collapsible = groups.filter(g => g.rest.length > 0);
+      const allOpen = collapsible.every(g => this._expanded.has(g.key));
+      collapsible.forEach(g => { if (allOpen) this._expanded.delete(g.key); else this._expanded.add(g.key); });
+      this._renderTable();
+    });
+
     // 検索は Enter または「🔍 検索」ボタンで実行する。
     // 入力のたびに表を作り直すと、検索窓ごと再生成されてIME変換中の入力
     // （「く」= k + u など）が途切れてしまうため、確定後にまとめて検索する。
