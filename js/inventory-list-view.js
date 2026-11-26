@@ -162,7 +162,7 @@ const InventoryListView = {
     // テーブル行HTML
     const tableBodyHtml = filtered.map(r => {
       // 1箱あたり: 何錠（何個）入りか + 箱価格を表示
-      const unitLabel = r.unit || '';
+      const unitLabel = this._esc(r.unit || '');
       const pkgHtml = r.pkg_qty > 1
         ? `<span class="pkg-chip">📦 1箱 ${r.pkg_qty}${unitLabel}入り ¥${Math.round(r.pkg_price).toLocaleString()}</span>`
         : '';
@@ -188,24 +188,24 @@ const InventoryListView = {
       return `
         <tr class="${r.isCheapest ? 'inv-row-cheapest' : ''}${r.campaignExpiringSoon ? ' inv-row-expiring' : ''}">
           <td class="inv-col-name">
-            <div class="inv-med-name">${r.medicineName}</div>
-            <div class="inv-med-sub">${r.specification}${r.unit ? ' / ' + r.unit : ''}</div>
+            <div class="inv-med-name">${this._esc(r.medicineName)}</div>
+            <div class="inv-med-sub">${this._esc(r.specification)}${r.unit ? ' / ' + this._esc(r.unit) : ''}</div>
             ${pkgHtml}
             ${retailHtml}
           </td>
-          <td class="inv-col-vendor">${r.vendorName}</td>
+          <td class="inv-col-vendor">${this._esc(r.vendorName)}</td>
           <td class="inv-col-price">
             <div class="inv-price-row">
               ${cheapestHtml}
-              <strong>¥${r.price.toLocaleString()}</strong>${r.unit ? `<span class="inv-unit-label">/${r.unit}</span>` : ''}
+              <strong>¥${r.price.toLocaleString()}</strong>${r.unit ? `<span class="inv-unit-label">/${this._esc(r.unit)}</span>` : ''}
               ${r.taxIncluded ? '<span class="inv-tax-badge">税込</span>' : ''}
               ${unitWarnHtml}
               ${campaignHtml}
-              <button class="inv-edit-btn" data-price-id="${r.priceId}" title="単価・入数・1箱価格を編集">✏️</button>
+              <button class="inv-edit-btn" data-price-id="${r.priceId}" title="薬品名・業者・単価などを編集">✏️</button>
             </div>
           </td>
           <td class="inv-col-date">${r.effectiveDate || '-'}</td>
-          <td class="inv-col-cat">${r.category || '-'}</td>
+          <td class="inv-col-cat">${this._esc(r.category) || '-'}</td>
         </tr>`;
     }).join('');
 
@@ -348,7 +348,13 @@ const InventoryListView = {
     });
   },
 
-  // ── 単価・箱価格の編集 ────────────────────────────────────────────────────
+  // ── 登録内容の編集（薬品情報 + この業者の価格） ──────────────────────────
+
+  _esc(v) {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  },
 
   _showEditModal(priceId) {
     const p = AppState.prices.find(x => x.id === priceId);
@@ -357,33 +363,95 @@ const InventoryListView = {
       return;
     }
     const med  = MedicineService.findById(p.medicineId);
+    if (!med) {
+      UI.showToast('薬品データが見つかりません。再読み込みしてください', 'error');
+      return;
+    }
     const pkg  = PriceService.parsePkgInfo(p);
-    const unit = med?.unit || '錠';
+    const unit = med.unit || '錠';
+    const esc  = this._esc;
+
+    const vendorOpts = AppState.vendors
+      .map(v => `<option value="${esc(v.id)}" ${v.id === p.vendorId ? 'selected' : ''}>${esc(v.name)}</option>`)
+      .join('');
+    const categories = [...new Set(AppState.medicines.map(m => m.category).filter(Boolean))].sort();
+    const catList = categories.map(c => `<option value="${esc(c)}">`).join('');
+    const vendorCount = PriceService.getLatestPrices(med.id).length;
 
     const body = `
+      <p class="inv-edit-section">薬品の情報</p>
+      ${vendorCount > 1
+        ? `<p class="inv-edit-note">※ ここの変更は、この薬品の全業者（${vendorCount}社）の行に反映されます</p>`
+        : ''}
       <div class="form-group">
-        <label>1${unit}あたり単価 (¥)</label>
-        <input type="number" step="0.01" min="0" class="form-input" id="inv-edit-price" value="${p.price}">
+        <label>薬品名</label>
+        <input type="text" class="form-input" id="inv-edit-name" value="${esc(med.name)}">
       </div>
       <div class="form-group">
-        <label>入数（1箱に何${unit}入りか。バラ売りは1）</label>
-        <input type="number" step="1" min="1" class="form-input" id="inv-edit-pkg-qty"
-               value="${pkg.pkg_qty > 1 ? pkg.pkg_qty : 1}">
+        <label>規格（例: 100mg、500g×4袋）</label>
+        <input type="text" class="form-input" id="inv-edit-spec" value="${esc(med.specification)}">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>単位（錠・本・袋など）</label>
+          <input type="text" class="form-input" id="inv-edit-unit" value="${esc(med.unit)}">
+        </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <input type="text" class="form-input" id="inv-edit-category" list="inv-edit-category-list" value="${esc(med.category)}">
+          <datalist id="inv-edit-category-list">${catList}</datalist>
+        </div>
       </div>
       <div class="form-group">
-        <label>1箱あたり価格 (¥)</label>
-        <input type="number" step="1" min="0" class="form-input" id="inv-edit-pkg-price"
-               value="${pkg.pkg_qty > 1 ? Math.round(pkg.pkg_price) : ''}" placeholder="例: 10000">
+        <label>成分名</label>
+        <input type="text" class="form-input" id="inv-edit-ingredient" value="${esc(med.ingredient)}">
       </div>
+
+      <p class="inv-edit-section">この業者の価格</p>
       <div class="form-group">
-        <label>希望小売価格 (¥・フード等、任意)</label>
-        <input type="number" step="1" min="0" class="form-input" id="inv-edit-msrp"
-               value="${PriceService.parseMsrp(p) || ''}" placeholder="空欄なら未設定">
+        <label>業者</label>
+        <select class="form-input" id="inv-edit-vendor">${vendorOpts}</select>
       </div>
-      <p class="inv-edit-calc" id="inv-edit-calc">入数と1箱価格を入れると1${unit}あたりの単価を自動計算します</p>`;
+      <div class="form-row">
+        <div class="form-group">
+          <label>1${esc(unit)}あたり単価 (¥)</label>
+          <input type="number" step="0.01" min="0" class="form-input" id="inv-edit-price" value="${p.price}">
+        </div>
+        <div class="form-group">
+          <label>税区分</label>
+          <select class="form-input" id="inv-edit-tax">
+            <option value="0" ${p.taxIncluded ? '' : 'selected'}>税抜</option>
+            <option value="1" ${p.taxIncluded ? 'selected' : ''}>税込</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>入数（バラ売りは1）</label>
+          <input type="number" step="1" min="1" class="form-input" id="inv-edit-pkg-qty"
+                 value="${pkg.pkg_qty > 1 ? pkg.pkg_qty : 1}">
+        </div>
+        <div class="form-group">
+          <label>1箱あたり価格 (¥)</label>
+          <input type="number" step="1" min="0" class="form-input" id="inv-edit-pkg-price"
+                 value="${pkg.pkg_qty > 1 ? Math.round(pkg.pkg_price) : ''}" placeholder="例: 10000">
+        </div>
+      </div>
+      <p class="inv-edit-calc" id="inv-edit-calc">入数と1箱価格を入れると1${esc(unit)}あたりの単価を自動計算します</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>希望小売価格 (¥・任意)</label>
+          <input type="number" step="1" min="0" class="form-input" id="inv-edit-msrp"
+                 value="${PriceService.parseMsrp(p) || ''}" placeholder="空欄なら未設定">
+        </div>
+        <div class="form-group">
+          <label>適用日</label>
+          <input type="date" class="form-input" id="inv-edit-date" value="${esc(p.effectiveDate || '')}">
+        </div>
+      </div>`;
 
     UI.showModal(
-      `単価・箱価格の編集<br><small>${med?.name || ''}（${UI.vendorName(p.vendorId)}）</small>`,
+      `登録内容の編集<br><small>${esc(med.name)}（${esc(UI.vendorName(p.vendorId))}）</small>`,
       body,
       [
         { label: 'キャンセル', action: 'cancel', class: 'btn-secondary', onClick: () => UI.closeModal() },
@@ -410,11 +478,37 @@ const InventoryListView = {
   },
 
   async _saveEditModal(priceId, unit) {
-    const price    = parseFloat(document.getElementById('inv-edit-price')?.value);
-    const pkgQty   = parseInt(document.getElementById('inv-edit-pkg-qty')?.value) || 1;
-    const pkgPrice = parseFloat(document.getElementById('inv-edit-pkg-price')?.value) || 0;
-    const msrp     = parseFloat(document.getElementById('inv-edit-msrp')?.value) || 0;
+    const val = id => (document.getElementById(id)?.value ?? '').trim();
+    const p   = AppState.prices.find(x => x.id === priceId);
+    const med = p && MedicineService.findById(p.medicineId);
+    if (!p || !med) {
+      UI.showToast('データが見つかりません。再読み込みしてください', 'error');
+      return;
+    }
 
+    // 確認ダイアログを出すと編集画面が閉じるため、先に全ての入力値を読み取る
+    const medInput = {
+      name:          val('inv-edit-name'),
+      specification: val('inv-edit-spec'),
+      unit:          val('inv-edit-unit'),
+      category:      val('inv-edit-category'),
+      ingredient:    val('inv-edit-ingredient'),
+    };
+    const price    = parseFloat(val('inv-edit-price'));
+    const pkgQty   = parseInt(val('inv-edit-pkg-qty')) || 1;
+    const pkgPrice = parseFloat(val('inv-edit-pkg-price')) || 0;
+    const msrp     = parseFloat(val('inv-edit-msrp')) || 0;
+    const priceInput = {
+      price, pkgQty, pkgPrice, msrp,
+      vendorId:      val('inv-edit-vendor') || p.vendorId,
+      taxIncluded:   val('inv-edit-tax') === '1',
+      effectiveDate: val('inv-edit-date'),
+    };
+
+    if (!medInput.name) {
+      UI.showToast('薬品名を入力してください', 'error');
+      return;
+    }
     if (!price || isNaN(price) || price <= 0) {
       UI.showToast('単価を入力してください', 'error');
       return;
@@ -424,11 +518,37 @@ const InventoryListView = {
       return;
     }
 
+    const medChanged = ['name', 'specification', 'unit', 'category', 'ingredient']
+      .some(k => medInput[k] !== (med[k] || ''));
+
+    // 修正後の名前が別の薬品として既に登録されている場合は、二重登録にせず既存の薬品にまとめる
+    let mergeTarget = null;
+    if (medInput.name !== med.name) {
+      const key = FormatUtils.normalize(medInput.name);
+      mergeTarget = AppState.medicines.find(m => m.id !== med.id && FormatUtils.normalize(m.name) === key) || null;
+    }
+    if (mergeTarget) {
+      const ok = await UI.confirm(
+        `「${this._esc(mergeTarget.name)}」は既に登録されています。<br>` +
+        `この価格（${this._esc(UI.vendorName(priceInput.vendorId))}）を、既存の「${this._esc(mergeTarget.name)}」にまとめますか？<br>` +
+        `<small>規格・単位・カテゴリ・成分名は既存の薬品のものが使われます。</small>`
+      );
+      if (!ok) {
+        this._showEditModal(priceId);
+        return;
+      }
+    }
+
     try {
       UI.showLoading('保存中...');
-      await PriceService.updatePriceDetails(priceId, { price, pkgQty, pkgPrice, msrp });
+      if (mergeTarget) {
+        await PriceService.updatePriceDetails(priceId, { ...priceInput, medicineId: mergeTarget.id });
+      } else {
+        if (medChanged) await MedicineService.update(med.id, medInput);
+        await PriceService.updatePriceDetails(priceId, priceInput);
+      }
       UI.closeModal();
-      UI.showToast('単価・箱価格を更新しました', 'success');
+      UI.showToast(mergeTarget ? `「${mergeTarget.name}」にまとめました` : '登録内容を更新しました', 'success');
       this._renderTable();
     } catch (err) {
       UI.showToast(`保存エラー: ${err.message}`, 'error');

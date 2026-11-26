@@ -42,8 +42,34 @@ const MedicineService = {
     ];
     await SheetsAPI.appendRows(CONFIG.SHEET_NAMES.MEDICINES, [row]);
     const newMed = this.rowToObject([row[0], ...row.slice(1)], row);
+    this._lastRowIndex = (this._lastRowIndex || 1) + 1;
+    newMed._rowIndex = this._lastRowIndex;
     AppState.medicines.push(newMed);
     return newMed;
+  },
+
+  // 薬品マスターの項目を修正する（薬品名・成分名・規格・カテゴリ・単位 = B〜F列）
+  // この薬品に紐づく全業者の価格行の表示に反映される
+  async update(id, { name, ingredient, specification, category, unit }) {
+    const m = this.findById(id);
+    if (!m) throw new Error('薬品データが見つかりません');
+    if (!m._rowIndex) throw new Error('行番号が不明です。データを再読み込みしてください');
+    if (!name || !name.trim()) throw new Error('薬品名を入力してください');
+
+    const next = {
+      name: name.trim(),
+      ingredient: (ingredient ?? m.ingredient).trim(),
+      specification: (specification ?? m.specification).trim(),
+      category: (category ?? m.category).trim(),
+      unit: (unit ?? m.unit).trim(),
+    };
+    await SheetsAPI.updateRange(
+      CONFIG.SHEET_NAMES.MEDICINES,
+      `B${m._rowIndex}:F${m._rowIndex}`,
+      [[next.name, next.ingredient, next.specification, next.category, next.unit]]
+    );
+    Object.assign(m, next);
+    return m;
   },
 
   // 行データをオブジェクトに変換
@@ -64,9 +90,18 @@ const MedicineService = {
   },
 
   // 生データからオブジェクト配列を作成
+  // 元のシート行番号 (_rowIndex) を保持 → 修正時にこの行を書き換える
   parseRows(rows) {
-    if (!rows || rows.length < 2) return [];
-    return rows.slice(1).map(row => this.rowToObject(rows[0], row));
+    if (!rows || rows.length < 2) {
+      this._lastRowIndex = rows?.length || 1;
+      return [];
+    }
+    this._lastRowIndex = rows.length; // ヘッダー込みの末尾行
+    return rows.slice(1).map((row, i) => {
+      const obj = this.rowToObject(rows[0], row);
+      obj._rowIndex = i + 2; // 1=ヘッダー、2以降がデータ
+      return obj;
+    });
   },
 
   // 成分名で同一成分グループを取得

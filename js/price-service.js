@@ -181,10 +181,12 @@ const PriceService = {
     return rows.length;
   },
 
-  // 単価とパッケージ情報（入数・1箱価格）・希望小売価格を更新する
-  // 単価=D列、備考（pkg:入数@箱価格 msrp:希望小売価格 形式）=I列 を書き換える
+  // 価格行の項目を修正する
+  //   単価(D列) / 備考(I列: pkg:入数@箱価格 msrp:希望小売価格 形式)
+  //   薬品ID(B列)・業者(C列)・税込フラグ(E列)・適用日(F列) は指定があり、変更された場合のみ書き換える
   // msrp: undefined=現状維持 / 0やnull=削除 / 正の数=設定
-  async updatePriceDetails(priceId, { price, pkgQty, pkgPrice, msrp }) {
+  // medicineId / vendorId / taxIncluded / effectiveDate: undefined=現状維持
+  async updatePriceDetails(priceId, { price, pkgQty, pkgPrice, msrp, medicineId, vendorId, taxIncluded, effectiveDate }) {
     const p = AppState.prices.find(x => x.id === priceId);
     if (!p) throw new Error('価格データが見つかりません');
     if (!p._rowIndex) {
@@ -208,9 +210,31 @@ const PriceService = {
       notes = notes ? `pkg:${pkgQty}@${box} ${notes}` : `pkg:${pkgQty}@${box}`;
     }
 
-    await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `D${p._rowIndex}`, [[price]]);
-    await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `I${p._rowIndex}`, [[notes]]);
+    const next = {
+      medicineId:    medicineId    === undefined ? p.medicineId    : medicineId,
+      vendorId:      vendorId      === undefined ? p.vendorId      : vendorId,
+      taxIncluded:   taxIncluded   === undefined ? p.taxIncluded   : !!taxIncluded,
+      effectiveDate: effectiveDate === undefined ? p.effectiveDate : (effectiveDate || ''),
+    };
+    const metaChanged = next.medicineId !== p.medicineId || next.vendorId !== p.vendorId ||
+                        next.taxIncluded !== p.taxIncluded ||
+                        next.effectiveDate !== (p.effectiveDate || '');
 
+    if (metaChanged) {
+      // B〜F列（薬品ID・業者ID・単価・税込フラグ・有効開始日）をまとめて書き換える
+      await SheetsAPI.updateRange(
+        CONFIG.SHEET_NAMES.PRICES,
+        `B${p._rowIndex}:F${p._rowIndex}`,
+        [[next.medicineId, next.vendorId, price, next.taxIncluded ? 'TRUE' : 'FALSE', next.effectiveDate]]
+      );
+    } else {
+      await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `D${p._rowIndex}`, [[price]]);
+    }
+    if (notes !== (p.notes || '')) {
+      await SheetsAPI.updateRange(CONFIG.SHEET_NAMES.PRICES, `I${p._rowIndex}`, [[notes]]);
+    }
+
+    Object.assign(p, next);
     p.price = price;
     p.notes = notes;
     return p;

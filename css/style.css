@@ -1645,3 +1645,19 @@ body {
   font-weight: 600;
   margin-top: 2px;
 }
+
+/* ===== 登録内容の編集モーダル ===== */
+.inv-edit-section {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary, #1a73e8);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin: 4px 0 10px;
+}
+.inv-edit-section:not(:first-child) { margin-top: 18px; }
+.inv-edit-note {
+  font-size: 12px;
+  color: #b06000;
+  margin: -4px 0 10px;
+}
